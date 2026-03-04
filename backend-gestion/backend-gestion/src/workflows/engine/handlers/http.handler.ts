@@ -9,13 +9,9 @@ import { TemplateUtil } from '../utils/template.util';
 export class HttpHandler implements NodeHandler {
   private readonly logger = new Logger(HttpHandler.name);
 
-  constructor(private readonly templateUtil: TemplateUtil) { }
+  constructor(private readonly templateUtil: TemplateUtil) {}
 
-  async execute(
-    node: any,
-    context: WorkflowContext,
-    _step: any,
-  ): Promise<any> {
+  async execute(node: any, context: WorkflowContext, _step: any): Promise<any> {
     // Procesar la configuración con el motor de plantillas
     const config = this.templateUtil.process(node.config || {}, context);
 
@@ -35,7 +31,12 @@ export class HttpHandler implements NodeHandler {
       const response = await fetch(url, {
         method,
         headers,
-        body: method !== 'GET' ? (typeof body === 'string' ? body : JSON.stringify(body)) : undefined,
+        body:
+          method !== 'GET'
+            ? typeof body === 'string'
+              ? body
+              : JSON.stringify(body)
+            : undefined,
       });
 
       const data = await response.text();

@@ -6,12 +6,12 @@ import {
   IsObject,
   IsOptional,
   IsUUID,
-  ValidateIf
+  ValidateIf,
 } from 'class-validator';
 import { WorkflowNodeType } from '../domain/workflow-node-type.enum';
 
 export class CreateWorkflowNodeDto {
-  @ApiProperty({ enum: WorkflowNodeType, example: WorkflowNodeType.ACTION })
+  @ApiProperty({ enum: WorkflowNodeType, example: WorkflowNodeType.DATABASE })
   @IsEnum(WorkflowNodeType)
   @IsNotEmpty()
   type: WorkflowNodeType;

@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
-import { ActionHandler } from './engine/handlers/action.handler';
+import { DatabaseHandler } from './engine/handlers/database.handler';
 import { DelayHandler } from './engine/handlers/delay.handler';
 import { FormHandler } from './engine/handlers/form.handler';
 import { HttpHandler } from './engine/handlers/http.handler';
 import { NotificationHandler } from './engine/handlers/notification.handler';
+import { SetHandler } from './engine/handlers/set.handler';
 import { WebhookHandler } from './engine/handlers/webhook.handler';
 import { TemplateUtil } from './engine/utils/template.util';
 import { WorkflowEngineService } from './engine/workflow-engine.service';
@@ -19,7 +20,8 @@ import { WorkflowsService } from './workflows.service';
     WorkflowEngineService,
     HttpHandler,
     WebhookHandler,
-    ActionHandler,
+    DatabaseHandler,
+    SetHandler,
     DelayHandler,
     NotificationHandler,
     FormHandler,
@@ -27,4 +29,4 @@ import { WorkflowsService } from './workflows.service';
   ],
   exports: [WorkflowsService, WorkflowEngineService, TemplateUtil],
 })
-export class WorkflowsModule { }
+export class WorkflowsModule {}

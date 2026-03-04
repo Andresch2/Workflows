@@ -50,7 +50,6 @@ export class DropOldWorkflowTables1771400000000 implements MigrationInterface {
     `);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public async down(_queryRunner: QueryRunner): Promise<void> {
     // Drop tables in reverse order
     await _queryRunner.query(`DROP TABLE IF EXISTS "workflow_node" CASCADE`);

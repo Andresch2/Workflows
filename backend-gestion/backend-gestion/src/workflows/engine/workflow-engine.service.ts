@@ -2,11 +2,12 @@ import { Injectable, Logger } from '@nestjs/common';
 import { WorkflowNode } from '../domain/workflow-node';
 import { WorkflowNodeType } from '../domain/workflow-node-type.enum';
 import { WorkflowNodeRepository } from '../infrastructure/persistence/workflow-node.repository';
-import { ActionHandler } from './handlers/action.handler';
+import { DatabaseHandler } from './handlers/database.handler';
 import { DelayHandler } from './handlers/delay.handler';
 import { FormHandler } from './handlers/form.handler';
 import { HttpHandler } from './handlers/http.handler';
 import { NotificationHandler } from './handlers/notification.handler';
+import { SetHandler } from './handlers/set.handler';
 import { WebhookHandler } from './handlers/webhook.handler';
 import { NodeHandler, WorkflowContext } from './types';
 
@@ -29,7 +30,8 @@ export class WorkflowEngineService {
     private readonly workflowNodeRepository: WorkflowNodeRepository,
     private readonly httpHandler: HttpHandler,
     private readonly webhookHandler: WebhookHandler,
-    private readonly actionHandler: ActionHandler,
+    private readonly databaseHandler: DatabaseHandler,
+    private readonly setHandler: SetHandler,
     private readonly delayHandler: DelayHandler,
     private readonly notificationHandler: NotificationHandler,
     private readonly formHandler: FormHandler,
@@ -37,7 +39,8 @@ export class WorkflowEngineService {
     // Registrar handlers por tipo
     this.handlers.set(WorkflowNodeType.HTTP, this.httpHandler);
     this.handlers.set(WorkflowNodeType.WEBHOOK, this.webhookHandler);
-    this.handlers.set(WorkflowNodeType.ACTION, this.actionHandler);
+    this.handlers.set(WorkflowNodeType.DATABASE, this.databaseHandler);
+    this.handlers.set(WorkflowNodeType.SET, this.setHandler);
     this.handlers.set(WorkflowNodeType.DELAY, this.delayHandler);
     this.handlers.set(WorkflowNodeType.NOTIFICATION, this.notificationHandler);
     this.handlers.set(WorkflowNodeType.FORM, this.formHandler);
@@ -78,6 +81,7 @@ export class WorkflowEngineService {
     // 4. Contexto de ejecución
     const context: WorkflowContext = {
       workflowId,
+      nodes: {}, // Memoria global: resultados de cada nodo
       ...initialContext,
     };
 
@@ -170,6 +174,10 @@ export class WorkflowEngineService {
       );
       results[node.id] = { status: 'passed', type: node.type };
     }
+
+    // Guardar el resultado en la memoria global del contexto
+    context.nodes = context.nodes || {};
+    context.nodes[node.id] = results[node.id];
 
     // Procesar hijos recursivamente
     const children = childMap.get(node.id) || [];

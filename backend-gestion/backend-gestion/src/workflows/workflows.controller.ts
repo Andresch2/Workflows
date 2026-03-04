@@ -31,6 +31,7 @@ import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { FindAllWorkflowsDto } from './dto/find-all-workflows.dto';
 import { UpdateWorkflowNodeDto } from './dto/update-workflow-node.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
+import { DatabaseHandler } from './engine/handlers/database.handler';
 import { WorkflowsService } from './workflows.service';
 
 @ApiTags('Workflows')
@@ -41,7 +42,10 @@ import { WorkflowsService } from './workflows.service';
   version: '1',
 })
 export class WorkflowsController {
-  constructor(private readonly workflowsService: WorkflowsService) { }
+  constructor(
+    private readonly workflowsService: WorkflowsService,
+    private readonly databaseHandler: DatabaseHandler,
+  ) { }
 
   // ==================== Workflow Endpoints ====================
 
@@ -153,31 +157,134 @@ export class WorkflowsController {
     return this.workflowsService.removeNode(id);
   }
 
-  // ==================== Testing Endpoints ====================
-
-  @Post('test/action')
-  async testActionNode(@Body() dto: { nombre?: string; endpoint?: string; json?: any }) {
-    return this.workflowsService.testAction(dto);
-  }
+  // ==================== Test Endpoints ====================
 
   @Post('test/http')
-  async testHttpNode(@Body() dto: { method: string, url: string, headers?: any, body?: any }) {
+  async testHttpNode(
+    @Body() dto: { method: string; url: string; headers?: any; body?: any },
+  ) {
     try {
       const { method = 'GET', url, headers = {}, body } = dto;
 
       const response = await fetch(url, {
         method,
         headers,
-        body: method !== 'GET' && body ? (typeof body === 'string' ? body : JSON.stringify(body)) : undefined,
+        body:
+          method !== 'GET' && body
+            ? typeof body === 'string'
+              ? body
+              : JSON.stringify(body)
+            : undefined,
       });
 
       const text = await response.text();
       let data;
-      try { data = JSON.parse(text); } catch { data = text; }
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = text;
+      }
 
       return { statusCode: response.status, data };
     } catch (error: any) {
       return { statusCode: 500, error: error.message };
+    }
+  }
+
+  @Post('test/database')
+  async testDatabaseNode(
+    @Body() dto: { nombre?: string; json?: any; data?: any },
+  ) {
+    const fakeNode = {
+      id: 'test-node',
+      config: {
+        nombre: dto.nombre,
+        json: dto.json,
+        data: dto.data,
+      },
+    };
+    const fakeContext = { workflowId: 'test' };
+    return this.databaseHandler.execute(fakeNode, fakeContext, null);
+  }
+
+  @Post('test/webhook')
+  async testWebhookNode(
+    @Body() dto: { url: string; payload?: any; headers?: any },
+  ) {
+    try {
+      const { url, payload = {}, headers = { 'Content-Type': 'application/json' } } = dto;
+
+      if (!url) {
+        return { status: 'error', message: 'URL es requerida' };
+      }
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+      });
+
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        data = text;
+      }
+
+      return { status: 'success', statusCode: response.status, data };
+    } catch (error: any) {
+      return { status: 'failed', error: error.message };
+    }
+  }
+
+  @Post('test/notification')
+  async testNotificationNode(
+    @Body() dto: { url?: string; recipient: string; message: string },
+  ) {
+    try {
+      const { url, recipient, message } = dto;
+
+      // Si hay URL configurada, enviar como POST
+      if (url) {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            recipient,
+            message,
+            timestamp: new Date().toISOString(),
+            source: 'workflow-notification',
+          }),
+        });
+
+        const text = await response.text();
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = text;
+        }
+
+        return {
+          status: 'sent',
+          statusCode: response.status,
+          recipient,
+          message,
+          data,
+        };
+      }
+
+      // Sin URL: solo simular
+      return {
+        status: 'simulated',
+        recipient,
+        message,
+        timestamp: new Date().toISOString(),
+        note: 'No hay URL configurada. Configura una URL de webhook (Slack, Discord, etc.) para enviar notificaciones reales.',
+      };
+    } catch (error: any) {
+      return { status: 'failed', error: error.message };
     }
   }
 }

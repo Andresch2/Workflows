@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, HostListener, Input, Output } from '@angular/core';
+import { Component, ElementRef, EventEmitter, HostListener, Input, Output, ViewChild } from '@angular/core';
 import { EditorNode, WorkflowNodeType } from '../../../../../core/models/workflow.model';
+import { getNodeLabel } from '../../utils/workflow-node.utils';
 
 @Component({
     selector: 'app-workflow-canvas',
@@ -21,6 +22,8 @@ export class WorkflowCanvasComponent {
     @Output() canvasClicked = new EventEmitter<void>();
     @Output() connectionStarted = new EventEmitter<EditorNode>();
     @Output() nodeMoved = new EventEmitter<{ id: string, x: number, y: number }>();
+
+    @ViewChild('editorCanvas', { static: true }) canvasRef!: ElementRef<HTMLElement>;
 
     // Drag state
     dragging = false;
@@ -51,7 +54,7 @@ export class WorkflowCanvasComponent {
     onMouseMove(event: MouseEvent) {
         if (!this.dragging || !this.dragNodeId) return;
 
-        const canvas = document.querySelector('.editor-canvas') as HTMLElement;
+        const canvas = this.canvasRef?.nativeElement;
         if (!canvas) return;
 
         const rect = canvas.getBoundingClientRect();
@@ -112,15 +115,6 @@ export class WorkflowCanvasComponent {
     }
 
     getNodeLabel(type: WorkflowNodeType): string {
-        switch (type) {
-            case WorkflowNodeType.TRIGGER: return 'Trigger';
-            case WorkflowNodeType.HTTP: return 'HTTP';
-            case WorkflowNodeType.WEBHOOK: return 'Webhook';
-            case WorkflowNodeType.ACTION: return 'Action';
-            case WorkflowNodeType.NOTIFICATION: return 'Notificación';
-            case WorkflowNodeType.DELAY: return 'Delay';
-            case WorkflowNodeType.FORM: return 'Formulario';
-            default: return 'Desconocido';
-        }
+        return getNodeLabel(type);
     }
 }

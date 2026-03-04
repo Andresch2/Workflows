@@ -55,6 +55,31 @@ export class WorkflowEditorComponent implements OnInit {
         return this.nodes().find(n => n.id === selected.parentId) || null;
     });
 
+    // Fase 4: Todos los ancestros del nodo seleccionado
+    availableAncestors = computed<EditorNode[]>(() => {
+        const selected = this.selectedNode();
+        if (!selected) return [];
+
+        const allNodes = this.nodes();
+        const ancestors: EditorNode[] = [];
+        let currentParentId = selected.parentId;
+
+        // Prevención de ciclos
+        const visited = new Set<string>();
+        visited.add(selected.id);
+
+        while (currentParentId) {
+            const parent = allNodes.find(n => n.id === currentParentId);
+            if (!parent || visited.has(parent.id)) break;
+
+            ancestors.push(parent);
+            visited.add(parent.id);
+            currentParentId = parent.parentId;
+        }
+
+        return ancestors.reverse(); // Orden: desde la raíz hasta el padre inmediato
+    });
+
     // IDs de nodos eliminados (para borrar del backend al guardar)
     deletedNodeIds: string[] = [];
 

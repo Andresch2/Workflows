@@ -5,7 +5,7 @@ import {
   IsObject,
   IsOptional,
   IsUUID,
-  ValidateIf
+  ValidateIf,
 } from 'class-validator';
 import { WorkflowNodeType } from '../domain/workflow-node-type.enum';
 

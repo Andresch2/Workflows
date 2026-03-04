@@ -6,8 +6,8 @@
     </div>
     <div class="config-section config-meta">
         <div><label>ID</label><small>{{ node.id.substring(0, 12) }}...</small></div>
-        <div><label>Posición</label><small>X: {{ node.x | number:'1.0-0' }}, Y: {{ node.y
-                | number:'1.0-0' }}</small></div>
+        <div><label>Posición</label><small>X: {{ node.x | number:'1.0-0' }}, Y: {{ node.y | number:'1.0-0' }}</small>
+        </div>
     </div>
     @if (node.parentId) {
     <div class="config-section">
@@ -22,28 +22,28 @@
 
     <div style="flex: 1; overflow-y: auto; padding-right: 0.25rem;">
 
-        <!-- ==================== Parent Node Data ==================== -->
-        @if (parentNode) {
+        <!-- ==================== Ancestor Data ==================== -->
+        @for (panel of ancestorPanels(); track panel.node.id) {
         <div class="form-section parent-data-section"
             style="background: #1e293b; border: 1px solid #334155; border-radius: 6px; margin-bottom: 1rem; padding: 0.75rem;">
             <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;"
-                (click)="showParentData.set(!showParentData())">
+                (click)="togglePanel(panel)">
                 <h5
                     style="margin: 0; color: #e2e8f0; font-size: 0.85rem; display: flex; align-items: center; gap: 0.4rem;">
-                    <i class="pi pi-download" style="color: #3b82f6;"></i>
-                    INPUT ({{ getNodeLabel(parentNode.type) }})
+                    <i class="pi pi-code" style="color: #3b82f6;"></i>
+                    Variables ({{ getNodeLabel(panel.node.type) }})
                 </h5>
-                <i class="pi" [ngClass]="showParentData() ? 'pi-chevron-up' : 'pi-chevron-down'"
+                <i class="pi" [ngClass]="panel.expanded ? 'pi-chevron-up' : 'pi-chevron-down'"
                     style="font-size: 0.8rem; color: #94a3b8;"></i>
             </div>
 
-            @if (showParentData()) {
+            @if (panel.expanded) {
             <div style="margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.4rem;">
-                <small style="color: #94a3b8; font-size: 0.75rem; display: block; margin-bottom: 0.25rem;">Arrastra los
-                    campos a tus inputs:</small>
+                <small style="color: #94a3b8; font-size: 0.75rem; display: block; margin-bottom: 0.25rem;">Arrastra a
+                    tus inputs:</small>
 
-                @for (field of parentFields(); track field.key) {
-                <div class="parent-field-chip" draggable="true" (dragstart)="onFieldDragStart($event, field.key)"
+                @for (field of panel.fields; track field.key) {
+                <div class="parent-field-chip" draggable="true" (dragstart)="onFieldDragStart($event, field.dragText)"
                     style="display: flex; align-items: center; gap: 0.5rem; background: #0f172a; padding: 0.4rem 0.6rem; border-radius: 4px; border: 1px solid #334155; cursor: grab; transition: all 0.2s;">
                     <i class="pi {{ field.icon }}" style="color: #64748b; font-size: 0.7rem;"></i>
                     <span
@@ -61,9 +61,9 @@
                 </div>
                 }
 
-                @if (parentFields().length === 0) {
+                @if (panel.fields.length === 0) {
                 <div style="color: #64748b; font-size: 0.75rem; font-style: italic; padding: 0.4rem;">
-                    No hay datos configurados en el nodo previo.
+                    No hay campos configurados en este nodo.
                 </div>
                 }
             </div>
@@ -71,250 +71,37 @@
         </div>
         }
 
-        <!-- ==================== HTTP Form ==================== -->
-        @if (node.type === 'HTTP') {
-        <div class="form-section">
-            <h5><i class="pi pi-globe"></i> Configuración HTTP</h5>
-            <div class="form-group">
-                <label>Método</label>
-                <p-select [options]="httpMethods" [ngModel]="httpMethod()"
-                    (ngModelChange)="httpMethod.set($event); onFormFieldChange()" placeholder="Método"
-                    styleClass="w-full" appendTo="body" />
-            </div>
-            <div class="form-group">
-                <label>URL</label>
-                <input pInputText [ngModel]="httpUrl()" (ngModelChange)="httpUrl.set($event); onFormFieldChange()"
-                    placeholder="https://api.example.com/data" class="w-full" />
-            </div>
-            @if (httpMethod() !== 'GET') {
-            <div class="form-group">
-                <label>Body (JSON)</label>
-                <textarea pTextarea [ngModel]="httpBody()" (ngModelChange)="httpBody.set($event); onFormFieldChange()"
-                    placeholder='{ "key": "value" }' rows="4" class="w-full"></textarea>
-                <small
-                    style="display: block; margin-top: 0.5rem; color: #6b7280; font-size: 0.75rem; line-height: 1.2;">
-                    <i>Tip:</i> Usa <code ngNonBindable>&#123;&#123; variable &#125;&#125;</code> para inyectar
-                    datos del disparador.<br>
-                    Envía <code ngNonBindable>"&#123;&#123; __FULL_PAYLOAD__ &#125;&#125;"</code> para retransmitir
-                    todo el JSON original (Ej. para el API).
-                </small>
-            </div>
-            }
-            <div class="form-group">
-                <label>Headers (JSON) <small class="optional">opcional</small></label>
-                <textarea pTextarea [ngModel]="httpHeaders()"
-                    (ngModelChange)="httpHeaders.set($event); onFormFieldChange()"
-                    placeholder='{ "Authorization": "Bearer ..." }' rows="3" class="w-full"></textarea>
-            </div>
-
-            <div class="form-group mt-3">
-                <p-button label="Probar Petición" icon="pi pi-play" size="small" severity="secondary"
-                    (onClick)="testHttpNode()" [loading]="testingHttp()" />
-            </div>
-
-            @if (httpTestResult()) {
-            <div class="form-group mt-3">
-                <label>Respuesta (JSON)</label>
-                <textarea pTextarea [value]="httpTestResult()" readonly rows="8" class="w-full"
-                    style="background-color: #1e293b; color: #e2e8f0; font-family: monospace; font-size: 0.85rem; border-radius: 6px;"></textarea>
-            </div>
-            }
-        </div>
+        <!-- ==================== Componentes Dinámicos de Propiedades ==================== -->
+        @switch (node.type) {
+        @case ('HTTP') {
+        <app-http-properties [node]="node" [availableAncestors]="availableAncestors"
+            (configChange)="onConfigChangeFromChild($event)"></app-http-properties>
         }
-
-        <!-- ==================== Webhook Form ==================== -->
-        @if (node.type === 'WEBHOOK') {
-        <div class="form-section">
-            <h5><i class="pi pi-link"></i> Configuración Webhook</h5>
-            <div class="form-group">
-                <label>URL destino</label>
-                <input pInputText [ngModel]="webhookUrl()" (ngModelChange)="webhookUrl.set($event); onFormFieldChange()"
-                    placeholder="https://webhook.site/..." class="w-full" />
-            </div>
-            <div class="form-group">
-                <label>Payload (JSON)</label>
-                <textarea pTextarea [ngModel]="webhookPayload()"
-                    (ngModelChange)="webhookPayload.set($event); onFormFieldChange()"
-                    placeholder='{ "evento": "nuevo_registro" }' rows="4" class="w-full"></textarea>
-            </div>
-        </div>
+        @case ('WEBHOOK') {
+        <app-webhook-properties [node]="node" [availableAncestors]="availableAncestors"
+            (configChange)="onConfigChangeFromChild($event)"></app-webhook-properties>
         }
-
-        <!-- ==================== Notification Form ==================== -->
-        @if (node.type === 'NOTIFICATION') {
-        <div class="form-section">
-            <h5><i class="pi pi-bell"></i> Configuración Notificación</h5>
-            <div class="form-group">
-                <label>Destinatario</label>
-                <input pInputText [ngModel]="notifRecipient()"
-                    (ngModelChange)="notifRecipient.set($event); onFormFieldChange()" placeholder="admin@empresa.com"
-                    class="w-full" />
-            </div>
-            <div class="form-group">
-                <label>Mensaje</label>
-                <textarea pTextarea [ngModel]="notifMessage()"
-                    (ngModelChange)="notifMessage.set($event); onFormFieldChange()"
-                    placeholder="Se completó el proceso..." rows="3" class="w-full"></textarea>
-            </div>
-        </div>
+        @case ('NOTIFICATION') {
+        <app-notification-properties [node]="node" [availableAncestors]="availableAncestors"
+            (configChange)="onConfigChangeFromChild($event)"></app-notification-properties>
         }
-
-        <!-- ==================== Delay Form ==================== -->
-        @if (node.type === 'DELAY') {
-        <div class="form-section">
-            <h5><i class="pi pi-clock"></i> Configuración Delay</h5>
-            <div class="form-row">
-                <div class="form-group flex-1">
-                    <label>Duración</label>
-                    <p-inputNumber [ngModel]="delayDuration()"
-                        (ngModelChange)="delayDuration.set($event); onFormFieldChange()" [min]="1" [max]="3600"
-                        styleClass="w-full" />
-                </div>
-                <div class="form-group flex-1">
-                    <label>Unidad</label>
-                    <p-select [options]="delayUnits" [ngModel]="delayUnit()"
-                        (ngModelChange)="delayUnit.set($event); onFormFieldChange()" styleClass="w-full"
-                        appendTo="body" />
-                </div>
-            </div>
-        </div>
+        @case ('DELAY') {
+        <app-delay-properties [node]="node" [availableAncestors]="availableAncestors"
+            (configChange)="onConfigChangeFromChild($event)"></app-delay-properties>
         }
-
-        <!-- ==================== Action Form ==================== -->
-        @if (node.type === 'ACTION') {
-        <div class="form-section">
-            <h5><i class="pi pi-database"></i> Configuración de Record</h5>
-
-            <!-- Selector rápido de tablas conocidas -->
-            <div class="form-group">
-                <label>Tabla</label>
-                <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.6rem;">
-                    @for (table of knownTables; track table.value) {
-                    <span (click)="onTableSelect(table)"
-                        [style.background]="recordNombre() === table.label ? '#3b82f6' : '#1e293b'"
-                        [style.color]="recordNombre() === table.label ? '#fff' : '#94a3b8'" style="display: inline-flex; align-items: center; gap: 0.3rem;
-                               padding: 0.25rem 0.65rem; border-radius: 20px; font-size: 0.78rem;
-                               cursor: pointer; border: 1px solid #334155; transition: all 0.15s; user-select: none;">
-                        <i class="pi pi-table" style="font-size: 0.7rem;"></i>{{ table.label }}
-                    </span>
-                    }
-                </div>
-                <label style="margin-top: 0.25rem;">Nombre personalizado</label>
-                <input pInputText [ngModel]="recordNombre()" (ngModelChange)="onNombreInput($event)"
-                    placeholder="O escribe un nombre personalizado..." class="w-full" />
-            </div>
-
-            <!-- Endpoint (auto-rellenado al seleccionar tabla) -->
-            <div class="form-group mt-3">
-                <label>Endpoint</label>
-                <input pInputText [ngModel]="recordEndpoint()"
-                    (ngModelChange)="recordEndpoint.set($event); onFormFieldChange()" placeholder="/api/v1/users"
-                    class="w-full" />
-                <small style="color: #6b7280; font-size: 0.75rem;">
-                    Se rellena automáticamente al seleccionar una tabla.
-                </small>
-            </div>
-
-            <!-- Campos del registro: inputs editables por campo -->
-            @if (recordFields().length > 0) {
-            <div class="form-group mt-3">
-                <label style="margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem;">
-                    <i class="pi pi-list" style="color: #3b82f6; font-size: 0.85rem;"></i>
-                    Datos del registro
-                </label>
-                <div style="display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.4rem;">
-                    @for (field of recordFields(); track field.key) {
-                    <div style="display: flex; flex-direction: column; gap: 0.2rem;">
-                        <label style="font-size: 0.78rem; color: #94a3b8; font-weight: 500;">
-                            {{ field.label }}
-                            <span
-                                style="font-family: monospace; color: #475569; font-size: 0.7rem; margin-left: 0.3rem;">({{
-                                field.key }})</span>
-                        </label>
-
-                        @if (field.type === 'textarea') {
-                        <textarea pTextarea [ngModel]="recordData()[field.key] || ''"
-                            (ngModelChange)="updateRecordField(field.key, $event)"
-                            [placeholder]="field.placeholder || ''" rows="2" class="w-full"
-                            style="font-size: 0.85rem;"></textarea>
-                        } @else if (field.type === 'select') {
-                        <p-select [options]="field.options || []" [ngModel]="recordData()[field.key] || ''"
-                            (ngModelChange)="updateRecordField(field.key, $event)"
-                            [placeholder]="'Selecciona ' + field.label" styleClass="w-full" appendTo="body" />
-                        } @else {
-                        <input pInputText
-                            [type]="field.type === 'email' ? 'email' : field.type === 'date' ? 'date' : 'text'"
-                            [ngModel]="recordData()[field.key] || ''"
-                            (ngModelChange)="updateRecordField(field.key, $event)"
-                            [placeholder]="field.placeholder || ''" class="w-full" style="font-size: 0.85rem;" />
-                        }
-                    </div>
-                    }
-                </div>
-                <small style="color: #6b7280; font-size: 0.72rem; margin-top: 0.4rem; display: block;">
-                    Completa los campos del registro. Los campos opcionales pueden dejarse vacíos.
-                </small>
-            </div>
-            }
-
-            <!-- Botón Probar Record -->
-            <div class="form-group mt-3">
-                <p-button label="Probar Record" icon="pi pi-play" size="small" severity="secondary"
-                    (onClick)="testActionNode()" [loading]="testingAction()" [disabled]="!recordEndpoint()" />
-            </div>
-
-            <!-- Resultados del record -->
-            @if (actionTestResult()) {
-            <div class="form-group mt-3">
-                @if (actionTestResult()!.rows && actionTestResult()!.rows!.length > 0) {
-                <!-- Tabla dinámica cuando el endpoint retorna un arreglo -->
-                <label>Resultado ({{ actionTestResult()!.rows!.length }} registro{{ actionTestResult()!.rows!.length !==
-                    1 ? 's' : '' }})</label>
-                <div style="overflow-x: auto; margin-top: 0.5rem; border-radius: 6px; border: 1px solid #334155;">
-                    <table style="width: 100%; border-collapse: collapse; font-size: 0.82rem; font-family: monospace;">
-                        <thead>
-                            <tr style="background: #1e293b; color: #94a3b8;">
-                                @for (col of getActionResultColumns(); track col) {
-                                <th
-                                    style="padding: 0.4rem 0.75rem; text-align: left; border-bottom: 1px solid #334155; white-space: nowrap;">
-                                    {{ col }}
-                                </th>
-                                }
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @for (row of actionTestResult()!.rows!; track $index) {
-                            <tr [style.background]="$index % 2 === 0 ? '#0f172a' : '#1e293b'">
-                                @for (col of getActionResultColumns(); track col) {
-                                <td
-                                    style="padding: 0.35rem 0.75rem; color: #e2e8f0; border-bottom: 1px solid #1e293b; white-space: nowrap;">
-                                    {{ row[col] }}
-                                </td>
-                                }
-                            </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-                } @else if (actionTestResult()!.rows && actionTestResult()!.rows!.length === 0) {
-                <label>Resultado</label>
-                <div
-                    style="background: #1e293b; border-radius: 6px; padding: 0.75rem; color: #94a3b8; font-size: 0.85rem; margin-top: 0.5rem;">
-                    <i class="pi pi-info-circle" style="margin-right: 0.4rem;"></i> No se encontraron registros.
-                </div>
-                } @else {
-                <!-- JSON para respuestas no tabulares -->
-                <label>Respuesta</label>
-                <textarea pTextarea [value]="actionTestResult()!.raw | json" readonly rows="6" class="w-full"
-                    style="background-color: #1e293b; color: #e2e8f0; font-family: monospace; font-size: 0.82rem; border-radius: 6px; margin-top: 0.5rem;"></textarea>
-                }
-            </div>
-            }
-        </div>
+        @case ('DATABASE') {
+        <app-database-properties [node]="node" [availableAncestors]="availableAncestors"
+            (configChange)="onConfigChangeFromChild($event)"></app-database-properties>
         }
-
-        <!-- ==================== Trigger Info ==================== -->
-        @if (node.type === 'TRIGGER') {
+        @case ('FORM') {
+        <app-form-properties [node]="node" [availableAncestors]="availableAncestors"
+            (configChange)="onConfigChangeFromChild($event)"></app-form-properties>
+        }
+        @case ('SET') {
+        <app-set-properties [node]="node" [availableAncestors]="availableAncestors"
+            (configChange)="onConfigChangeFromChild($event)"></app-set-properties>
+        }
+        @case ('TRIGGER') {
         <div class="form-section">
             <h5><i class="pi pi-bolt"></i> Nodo Trigger</h5>
             <p class="trigger-info">
@@ -323,46 +110,6 @@
             </p>
         </div>
         }
-
-        <!-- ==================== Form Node ==================== -->
-        @if (node.type === 'FORM') {
-        <div class="form-section">
-            <h5><i class="pi pi-list"></i> Configuración Formulario</h5>
-            <div class="form-group">
-                <label>Título del Formulario</label>
-                <input pInputText [ngModel]="formTitle()" (ngModelChange)="formTitle.set($event); onFormFieldChange()"
-                    placeholder="Ej: Datos del Cliente" class="w-full" />
-            </div>
-
-            <div class="form-group">
-                <label>Campos</label>
-                @for (field of formFields(); track $index) {
-                <div class="form-field-row"
-                    style="display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem;">
-                    <input pInputText [ngModel]="field.name" (ngModelChange)="updateFormField($index, 'name', $event)"
-                        placeholder="Nombre del campo" style="flex: 1;" />
-                    <p-select [options]="fieldTypes" [ngModel]="field.type"
-                        (ngModelChange)="updateFormField($index, 'type', $event)" placeholder="Tipo"
-                        style="width: 130px;" appendTo="body" />
-                    <label
-                        style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.8rem; white-space: nowrap; cursor: pointer;">
-                        <input type="checkbox" [checked]="field.required"
-                            (change)="updateFormField($index, 'required', $any($event.target).checked)" />
-                        Req.
-                    </label>
-                    <p-button icon="pi pi-trash" size="small" [text]="true" severity="danger"
-                        (onClick)="removeFormField($index)" pTooltip="Eliminar campo" />
-                </div>
-                }
-                @if (!formFields().length) {
-                <small style="color: #9ca3af;">No hay campos. Agrega uno con el botón de abajo.</small>
-                }
-                <div class="form-group" style="margin-top: 0.5rem;">
-                    <p-button label="+ Agregar Campo" icon="pi pi-plus" size="small" severity="secondary"
-                        (onClick)="addFormField()" />
-                </div>
-            </div>
-        </div>
         }
 
         <!-- ==================== Advanced JSON Toggle ==================== -->

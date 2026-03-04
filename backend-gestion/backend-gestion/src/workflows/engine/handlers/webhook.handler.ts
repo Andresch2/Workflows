@@ -1,19 +1,20 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { NodeHandler, WorkflowContext } from '../types';
+import { TemplateUtil } from '../utils/template.util';
 
 /**
  * WebhookHandler: Envía un POST a la URL configurada como webhook.
+ * Soporta interpolación de templates {{ nodes.ID.data.campo }}.
  */
 @Injectable()
 export class WebhookHandler implements NodeHandler {
   private readonly logger = new Logger(WebhookHandler.name);
 
-  async execute(
-    node: any,
-    context: WorkflowContext,
-    _step: any,
-  ): Promise<any> {
-    const config = node.config || {};
+  constructor(private readonly templateUtil: TemplateUtil) { }
+
+  async execute(node: any, context: WorkflowContext, _step: any): Promise<any> {
+    // Procesar la configuración con el motor de plantillas
+    const config = this.templateUtil.process(node.config || {}, context);
     const url = config.url;
     const headers = config.headers || { 'Content-Type': 'application/json' };
     const payload = config.payload || context;

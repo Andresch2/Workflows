@@ -93,7 +93,9 @@ export function getInngestFunctions(deps: InngestDeps) {
       const { taskId, title } = event.data;
 
       await step.run('log-task-info', async () => {
-        console.log(`¡Inngest detectó una nueva tarea automáticamente!: ${title} (ID: ${taskId})`);
+        console.log(
+          `¡Inngest detectó una nueva tarea automáticamente!: ${title} (ID: ${taskId})`,
+        );
         return { message: 'Auto-trigger detectado correctamente' };
       });
 
@@ -103,4 +105,3 @@ export function getInngestFunctions(deps: InngestDeps) {
 
   return [executeWorkflow, onWebhookReceived, onHttpTriggered, onTaskCreated];
 }
-

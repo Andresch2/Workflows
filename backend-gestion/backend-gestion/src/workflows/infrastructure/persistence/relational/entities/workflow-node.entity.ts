@@ -20,7 +20,7 @@ export class WorkflowNodeEntity extends EntityRelationalHelper {
   @Column({
     type: 'enum',
     enum: WorkflowNodeType,
-    default: WorkflowNodeType.ACTION,
+    default: WorkflowNodeType.TRIGGER,
   })
   type: WorkflowNodeType;
 

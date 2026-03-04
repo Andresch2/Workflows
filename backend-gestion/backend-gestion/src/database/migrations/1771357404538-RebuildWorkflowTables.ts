@@ -46,9 +46,7 @@ export class RebuildWorkflowTables1771357404538 implements MigrationInterface {
       `ALTER TABLE "task" DROP CONSTRAINT "FK_3797a20ef5553ae87af126bc2fe"`,
     );
     // Delete orphaned tasks (NULL projectId) before making column NOT NULL
-    await queryRunner.query(
-      `DELETE FROM "task" WHERE "projectId" IS NULL`,
-    );
+    await queryRunner.query(`DELETE FROM "task" WHERE "projectId" IS NULL`);
     await queryRunner.query(
       `ALTER TABLE "task" ALTER COLUMN "projectId" SET NOT NULL`,
     );

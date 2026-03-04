@@ -378,8 +378,12 @@ $wf-accent-light: rgba(99, 102, 241, 0.15);
     background: linear-gradient(135deg, #d97706, #fbbf24);
 }
 
-.node-action .node-card {
+.node-database .node-card {
     background: linear-gradient(135deg, #2563eb, #60a5fa);
+}
+
+.node-set .node-card {
+    background: linear-gradient(135deg, #e11d48, #fb7185);
 }
 
 .node-notification .node-card {
