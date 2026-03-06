@@ -20,6 +20,11 @@ export class UpdateWorkflowNodeDto {
   @IsOptional()
   config?: Record<string, any> | null;
 
+  @ApiPropertyOptional({ type: Object })
+  @IsObject()
+  @IsOptional()
+  dataSchema?: Record<string, any> | null;
+
   @ApiPropertyOptional({ type: Number })
   @IsNumber()
   @IsOptional()

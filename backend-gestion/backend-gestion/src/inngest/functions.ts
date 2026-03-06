@@ -43,10 +43,17 @@ export function getInngestFunctions(deps: InngestDeps) {
     { id: 'on-webhook-received' },
     { event: 'webhook.received' },
     async ({ event, step }) => {
-      const { workflowId, payload } = event.data;
+      const { workflowId, payload, headers, query } = event.data;
+      const webhookData = {
+        body: payload || {},
+        headers: headers || {},
+        query: query || {},
+      };
 
       return workflowEngineService.executeWorkflow(workflowId, step, {
-        webhookPayload: payload,
+        webhookPayload: webhookData.body,
+        webhook: webhookData,
+        $json: webhookData.body,
       });
     },
   );

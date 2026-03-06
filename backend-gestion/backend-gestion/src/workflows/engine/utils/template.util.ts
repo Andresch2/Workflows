@@ -3,6 +3,9 @@ import { WorkflowContext } from '../types';
 
 @Injectable()
 export class TemplateUtil {
+  private static readonly WHOLE_EXPR_REGEX = /^\{\{\s*([^{}]+?)\s*\}\}$/;
+  private static readonly INLINE_EXPR_REGEX = /\{\{\s*([^{}]+?)\s*\}\}/g;
+
   process<T>(template: T, context: WorkflowContext): T {
     if (!template) return template;
 
@@ -18,14 +21,17 @@ export class TemplateUtil {
         return payload;
       }
 
-      return obj.replace(/\{\{\s*([\w.-]+)\s*\}\}/g, (match, path) => {
-        const value = this.getValueByPath(context, path);
+      const wholeMatch = obj.match(TemplateUtil.WHOLE_EXPR_REGEX);
+      if (wholeMatch) {
+        const value = this.getValueByPath(context, wholeMatch[1]);
+        return value === undefined ? '' : value;
+      }
 
-        // Tolerar valores nulos o indefinidos devolviendo cadena vacía (o manejándolo adecuadamente)
+      return obj.replace(TemplateUtil.INLINE_EXPR_REGEX, (_match, pathExpr) => {
+        const value = this.getValueByPath(context, pathExpr);
         if (value === undefined || value === null) {
           return '';
         }
-
         return this.stringifyValue(value);
       });
     }
@@ -45,11 +51,23 @@ export class TemplateUtil {
     return obj;
   }
 
-  private getValueByPath(obj: any, path: string): any {
+  private getValueByPath(obj: any, rawPath: string): any {
+    const path = this.normalizePath(rawPath.trim());
+    if (!path) return undefined;
+
     return path.split('.').reduce((acc, part) => {
       if (acc === null || acc === undefined) return undefined;
       return acc[part];
     }, obj);
+  }
+
+  private normalizePath(path: string): string {
+    return path
+      .replace(/\[(\d+)\]/g, '.$1')
+      .replace(/\[['"]([^'"]+)['"]\]/g, '.$1')
+      .replace(/\.+/g, '.')
+      .replace(/^\./, '')
+      .replace(/\.$/, '');
   }
 
   private stringifyValue(value: any): string {

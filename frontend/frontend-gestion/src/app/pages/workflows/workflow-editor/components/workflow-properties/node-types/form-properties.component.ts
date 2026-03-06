@@ -14,13 +14,13 @@ import { EditorNode } from '../../../../../../core/models/workflow.model';
     template: `
     <div class="form-section">
         <h5><i class="pi pi-list"></i> Configuración Formulario</h5>
-        <div class="form-group">
+        <div class="flex flex-col gap-1 w-full mb-3">
             <label>Título del Formulario</label>
             <input pInputText [ngModel]="formTitle()" (ngModelChange)="formTitle.set($event); onFieldChange()"
                 placeholder="Ej: Datos del Cliente" class="w-full" />
         </div>
 
-        <div class="form-group">
+        <div class="flex flex-col gap-1 w-full mb-3">
             <label>Campos</label>
             @for (field of formFields(); track $index) {
             <div class="form-field-row"
@@ -43,7 +43,7 @@ import { EditorNode } from '../../../../../../core/models/workflow.model';
             @if (!formFields().length) {
             <small style="color: #9ca3af;">No hay campos. Agrega uno con el botón de abajo.</small>
             }
-            <div class="form-group" style="margin-top: 0.5rem; display: flex; gap: 0.5rem;">
+            <div class="flex flex-col gap-1 w-full mb-3 mt-3" style="margin-top: 0.5rem; display: flex; gap: 0.5rem;">
                 <p-button label="Agregar Campo" icon="pi pi-plus" size="small" severity="secondary"
                     (onClick)="addFormField()" />
                 <p-button label="Vista Previa" icon="pi pi-desktop" size="small" severity="info"

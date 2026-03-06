@@ -1,7 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
-
 import { environment } from '@/environments/environment';
 import {
     CreateWorkflowDto,
@@ -19,9 +18,7 @@ export class WorkflowService {
     constructor(private http: HttpClient) { }
 
     getWorkflows(page = 1, limit = 50): Observable<{ data: Workflow[]; hasNextPage: boolean }> {
-        return this.http.get<{ data: Workflow[]; hasNextPage: boolean }>(
-            `${this.apiUrl}?page=${page}&limit=${limit}`,
-        );
+        return this.http.get<{ data: Workflow[]; hasNextPage: boolean }>(`${this.apiUrl}?page=${page}&limit=${limit}`);
     }
 
     getWorkflowById(id: string): Observable<Workflow> {
@@ -39,8 +36,6 @@ export class WorkflowService {
     deleteWorkflow(id: string): Observable<void> {
         return this.http.delete<void>(`${this.apiUrl}/${id}`);
     }
-
-    // ===================== Nodes =====================
 
     getNodesByWorkflowId(workflowId: string): Observable<WorkflowNode[]> {
         return this.http.get<WorkflowNode[]>(`${this.apiUrl}/${workflowId}/nodes`);
@@ -70,9 +65,11 @@ export class WorkflowService {
         return this.http.post(`${this.apiUrl}/test/notification`, config);
     }
 
-    // ===================== Execution =====================
-
     executeWorkflow(id: string, payload: any = {}): Observable<any> {
         return this.http.post(`${this.apiUrl}/${id}/execute`, payload);
+    }
+
+    getLatestWebhookPayload(workflowId: string): Observable<any> {
+        return this.http.get<any>(`${this.apiUrl}/webhook/${workflowId}/latest`);
     }
 }

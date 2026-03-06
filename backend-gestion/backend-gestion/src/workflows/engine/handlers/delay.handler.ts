@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { NodeHandler, WorkflowContext } from '../types';
+import { TemplateUtil } from '../utils/template.util';
 
 /**
  * DelayHandler: Espera un tiempo configurable antes de continuar.
@@ -9,10 +10,11 @@ import { NodeHandler, WorkflowContext } from '../types';
 @Injectable()
 export class DelayHandler implements NodeHandler {
   private readonly logger = new Logger(DelayHandler.name);
+  constructor(private readonly templateUtil: TemplateUtil) {}
 
   async execute(node: any, context: WorkflowContext, step: any): Promise<any> {
-    const config = node.config || {};
-    const duration = config.duration || 1;
+    const config = this.templateUtil.process(node.config || {}, context);
+    const duration = Number(config.duration || 1);
     const unit = config.unit || 'seconds';
 
     // Convertir a formato Inngest sleep

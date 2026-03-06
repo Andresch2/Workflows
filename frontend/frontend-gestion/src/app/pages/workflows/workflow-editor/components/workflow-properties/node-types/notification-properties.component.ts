@@ -15,19 +15,19 @@ import { WorkflowService } from '../../../../../../core/services/workflow.servic
     template: `
     <div class="form-section">
         <h5><i class="pi pi-bell"></i> Configuración Notificación</h5>
-        <div class="form-group">
+        <div class="flex flex-col gap-1 w-full mb-3">
             <label>Destinatario</label>
             <input pInputText [ngModel]="notifRecipient()"
                 (ngModelChange)="notifRecipient.set($event); onFieldChange()" placeholder="admin@empresa.com o {{ '{' + '{ variable }' + '}' }}"
                 class="w-full" />
         </div>
-        <div class="form-group">
+        <div class="flex flex-col gap-1 w-full mb-3">
             <label>Mensaje</label>
             <textarea pTextarea [ngModel]="notifMessage()"
                 (ngModelChange)="notifMessage.set($event); onFieldChange()"
                 placeholder="Se completó el proceso..." rows="3" class="w-full"></textarea>
         </div>
-        <div class="form-group">
+        <div class="flex flex-col gap-1 w-full mb-3">
             <label>URL de Webhook <small style="color: #9ca3af;">(Slack, Discord, etc. — opcional)</small></label>
             <input pInputText [ngModel]="notifUrl()"
                 (ngModelChange)="notifUrl.set($event); onFieldChange()"
@@ -41,7 +41,7 @@ import { WorkflowService } from '../../../../../../core/services/workflow.servic
             </small>
         }
         
-        <div class="form-group mt-3">
+        <div class="flex flex-col gap-1 w-full mb-3 mt-3">
             <p-button label="Probar Notificación" icon="pi pi-play" size="small" severity="secondary"
                 [loading]="testing()" (onClick)="testNotificationNode()" />
         </div>

@@ -1,6 +1,6 @@
 import { environment } from '@/environments/environment';
 import { CommonModule } from '@angular/common';
-import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges, inject, signal } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
@@ -8,6 +8,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { TextareaModule } from 'primeng/textarea';
 import { TooltipModule } from 'primeng/tooltip';
 import { EditorNode } from '../../../../../../core/models/workflow.model';
+import { WorkflowService } from '../../../../../../core/services/workflow.service';
 
 @Component({
     selector: 'app-webhook-properties',
@@ -16,147 +17,135 @@ import { EditorNode } from '../../../../../../core/models/workflow.model';
     template: `
     <div class="form-section">
         <h5><i class="pi pi-inbox"></i> Webhook Trigger</h5>
-        <p style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 1rem; line-height: 1.5;">
-            Configura esta URL en tu sistema externo (Shopify, Github, Stripe, etc.) como endpoint de webhook.
-            Cuando hagan <strong>POST</strong> a esta URL, el workflow se ejecutará automáticamente con el payload recibido.
-        </p>
 
-        <div class="form-group">
-            <label style="font-weight: 600; margin-bottom: 0.5rem; display: block; color: #e2e8f0;">
-                <i class="pi pi-link" style="margin-right: 0.3rem;"></i> URL del Webhook
-            </label>
-            <div style="display: flex; gap: 0.5rem; align-items: center;">
-                <input pInputText
-                    [value]="webhookUrl()"
-                    readonly
-                    class="w-full"
-                    style="font-family: monospace; font-size: 0.85rem; background: #0f172a; border: 1px solid #334155; color: #e2e8f0; cursor: text;" />
-                <p-button
-                    icon="pi pi-copy"
-                    size="small"
-                    severity="secondary"
-                    pTooltip="Copiar URL"
-                    tooltipPosition="top"
-                    (onClick)="copyUrl()" />
+        <div class="flex flex-col gap-1 w-full mb-3">
+            <label>URL del Webhook</label>
+            <div style="display:flex; gap:.5rem; align-items:center;">
+                <input pInputText [value]="webhookUrl()" readonly class="w-full"
+                    style="font-family: monospace; font-size: .85rem;" />
+                <p-button icon="pi pi-copy" size="small" severity="secondary" (onClick)="copyUrl()" />
             </div>
         </div>
 
-        @if (copied()) {
-            <div style="margin-top: 0.5rem; padding: 0.5rem 0.75rem; background: #064e3b; border-radius: 6px; font-size: 0.8rem; color: #6ee7b7; display: flex; align-items: center; gap: 0.4rem;">
-                <i class="pi pi-check-circle"></i> URL copiada al portapapeles
-            </div>
-        }
-
-        <div style="margin-top: 1.25rem; padding: 0.75rem; background: #1e293b; border: 1px solid #334155; border-radius: 8px;">
-            <p style="color: #94a3b8; font-size: 0.8rem; margin: 0; line-height: 1.5;">
-                <i class="pi pi-info-circle" style="margin-right: 0.3rem; color: #3b82f6;"></i>
-                <strong style="color: #e2e8f0;">Método:</strong> POST &nbsp;|&nbsp;
-                <strong style="color: #e2e8f0;">Content-Type:</strong> application/json
-            </p>
-            <p style="color: #64748b; font-size: 0.75rem; margin: 0.5rem 0 0 0;">
-                Este nodo actúa como punto de entrada. No requiere configuración adicional.
-                El payload enviado por el sistema externo estará disponible directamente en los nodos siguientes.
-            </p>
-        </div>
-
-        <div class="form-group" style="margin-top: 1.5rem;">
-            <label style="font-weight: 600; margin-bottom: 0.5rem; display: block; color: #e2e8f0;">
-                <i class="pi pi-code" style="margin-right: 0.3rem;"></i> JSON Resultante (Esquema de Variables)
-            </label>
-            <textarea pTextarea [ngModel]="sampleJsonText()" (ngModelChange)="onSampleJsonChange($event)"
-                placeholder='{ "id": 123, "data": "test" }' rows="6" class="w-full"
-                style="background: #0f172a; border: 1px solid #334155; color: #e2e8f0; font-family: monospace;"></textarea>
-            @if (jsonError()) {
-                <small style="color: #ef4444; font-size: 0.75rem; display: block; margin-top: 0.4rem;">
-                    <i class="pi pi-exclamation-triangle"></i> Formato JSON inválido.
-                </small>
-            } @else {
-                <small style="color: #64748b; font-size: 0.75rem; display: block; margin-top: 0.4rem;">
-                    Pega un evento JSON de prueba real. Automáticamente aparecerá un árbol interactivo para que arrastres
-                    sus propiedades en los paneles inferiores.
-                </small>
+        <div class="flex flex-col gap-1 w-full mb-3">
+            <label>Expected Body (JSON)</label>
+            <textarea pTextarea [ngModel]="expectedBodyText()"
+                (ngModelChange)="onExpectedBodyChange($event)" rows="8" class="w-full"
+                placeholder='{"cliente_id": 1, "nombre": "Juan"}'
+                style="font-family: monospace;"></textarea>
+            @if (!expectedBodyValid()) {
+                <small style="color:#ef4444;">JSON inválido</small>
             }
+        </div>
+
+        <div class="flex flex-col gap-1 w-full mb-3">
+            <p-button label="Escuchar Payload Real" icon="pi pi-play" size="small" severity="secondary"
+                [loading]="isListening()" (onClick)="startListening()" />
         </div>
     </div>
   `
 })
-export class WebhookPropertiesComponent implements OnChanges {
+export class WebhookPropertiesComponent implements OnChanges, OnDestroy {
     @Input({ required: true }) node!: EditorNode;
     @Input() availableAncestors: EditorNode[] = [];
     @Output() configChange = new EventEmitter<Record<string, any>>();
 
     private messageService = inject(MessageService);
+    private workflowService = inject(WorkflowService);
 
     webhookUrl = signal('');
-    copied = signal(false);
-    sampleJsonText = signal('');
-    jsonError = signal(false);
+    expectedBodyText = signal('{}');
+    expectedBodyValid = signal(true);
+    isListening = signal(false);
+    private pollingInterval: ReturnType<typeof setInterval> | null = null;
 
     ngOnChanges(changes: SimpleChanges) {
         if (changes['node'] && this.node) {
-            const baseUrl = environment.apiUrl;
-            this.webhookUrl.set(`${baseUrl}/workflows/webhook/${this.node.workflowId}`);
-            this.copied.set(false);
-
-            const config = this.node.config || {};
-            if (config['sampleJson']) {
-                this.sampleJsonText.set(typeof config['sampleJson'] === 'string' ? config['sampleJson'] : JSON.stringify(config['sampleJson'], null, 2));
-            } else {
-                this.sampleJsonText.set('');
-            }
+            this.webhookUrl.set(this.buildWebhookUrl(this.node.workflowId));
+            const schemaBody = this.node.dataSchema?.['body'] || {};
+            this.expectedBodyText.set(JSON.stringify(schemaBody, null, 2));
+            this.expectedBodyValid.set(true);
         }
     }
 
-    onSampleJsonChange(val: string) {
-        this.sampleJsonText.set(val);
+    ngOnDestroy() {
+        this.stopPolling();
+    }
+
+    onExpectedBodyChange(value: string) {
+        this.expectedBodyText.set(value);
         try {
-            if (val.trim() === '') {
-                this.jsonError.set(false);
-                this.emitConfig();
-                return;
-            }
-            JSON.parse(val);
-            this.jsonError.set(false);
-            this.emitConfig();
+            const parsed = JSON.parse(value || '{}');
+            this.expectedBodyValid.set(true);
+            this.emitWithSchema(parsed);
         } catch {
-            this.jsonError.set(true);
+            this.expectedBodyValid.set(false);
         }
     }
 
-    private emitConfig() {
-        let sampleJson = null;
-        if (this.sampleJsonText().trim() !== '' && !this.jsonError()) {
-            try { sampleJson = JSON.parse(this.sampleJsonText()); } catch { }
+    startListening() {
+        if (this.isListening()) return;
+        this.isListening.set(true);
+        this.stopPolling();
+
+        this.pollingInterval = setInterval(() => {
+            this.workflowService.getLatestWebhookPayload(this.node.workflowId).subscribe({
+                next: (payload) => {
+                    if (payload === null) return;
+                    const packet =
+                        payload && typeof payload === 'object' && ('body' in payload || 'headers' in payload || 'query' in payload)
+                            ? payload
+                            : { body: payload || {}, headers: {}, query: {} };
+
+                    this.isListening.set(false);
+                    this.stopPolling();
+
+                    this.expectedBodyText.set(JSON.stringify(packet.body || {}, null, 2));
+                    this.expectedBodyValid.set(true);
+                    this.emitWithSchema(packet.body || {}, packet.headers || {}, packet.query || {});
+
+                    this.messageService.add({
+                        severity: 'success',
+                        summary: 'Webhook capturado',
+                        detail: 'Se actualizó el Expected Body con el payload real',
+                    });
+                },
+            });
+        }, 2000);
+    }
+
+    private emitWithSchema(body: any, headers: any = {}, query: any = {}) {
+        const nextConfig = { ...(this.node.config || {}) };
+
+        this.configChange.emit({
+            ...nextConfig,
+            __dataSchema: {
+                body: body || {},
+                headers: headers || {},
+                query: query || {},
+            },
+        });
+    }
+
+    private stopPolling() {
+        if (this.pollingInterval) {
+            clearInterval(this.pollingInterval);
+            this.pollingInterval = null;
         }
+    }
 
-        const newConfig = { ...this.node.config };
-
-        if (sampleJson) {
-            newConfig['sampleJson'] = sampleJson;
-        } else {
-            delete newConfig['sampleJson'];
+    private buildWebhookUrl(workflowId: string): string {
+        const base = (environment.apiUrl || '/api/v1').replace(/\/$/, '');
+        if (/^https?:\/\//i.test(base)) {
+            return `${base}/workflows/webhook/${workflowId}`;
         }
-
-        this.configChange.emit(newConfig);
+        const normalized = base.startsWith('/') ? base : `/${base}`;
+        return `${window.location.origin}${normalized}/workflows/webhook/${workflowId}`;
     }
 
     async copyUrl() {
         try {
             await navigator.clipboard.writeText(this.webhookUrl());
-            this.copied.set(true);
-            this.messageService.add({
-                severity: 'success',
-                summary: 'URL Copiada',
-                detail: 'URL del webhook copiada al portapapeles',
-                life: 2000,
-            });
-            setTimeout(() => this.copied.set(false), 3000);
-        } catch {
-            this.messageService.add({
-                severity: 'error',
-                summary: 'Error',
-                detail: 'No se pudo copiar la URL',
-            });
-        }
+        } catch { }
     }
 }

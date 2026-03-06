@@ -14,14 +14,21 @@ export class WorkflowNode {
   @ApiProperty({
     type: Object,
     nullable: true,
-    description: 'Configuración JSON del nodo',
+    description: 'Configuracion JSON del nodo',
   })
   config?: Record<string, any> | null;
 
-  @ApiProperty({ type: Number, description: 'Posición X en el canvas' })
+  @ApiProperty({
+    type: Object,
+    nullable: true,
+    description: 'Schema JSON de datos de entrada/salida del nodo',
+  })
+  dataSchema?: Record<string, any> | null;
+
+  @ApiProperty({ type: Number, description: 'Posicion X en el canvas' })
   x: number;
 
-  @ApiProperty({ type: Number, description: 'Posición Y en el canvas' })
+  @ApiProperty({ type: Number, description: 'Posicion Y en el canvas' })
   y: number;
 
   @ApiProperty({ type: String, description: 'ID del workflow asociado' })
@@ -30,7 +37,7 @@ export class WorkflowNode {
   @ApiProperty({
     type: String,
     nullable: true,
-    description: 'ID del nodo padre (null = nodo raíz)',
+    description: 'ID del nodo padre (null = nodo raiz)',
   })
   parentId?: string | null;
 

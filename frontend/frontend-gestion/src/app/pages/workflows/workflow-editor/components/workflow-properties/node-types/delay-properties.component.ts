@@ -13,13 +13,13 @@ import { EditorNode } from '../../../../../../core/models/workflow.model';
     <div class="form-section">
         <h5><i class="pi pi-clock"></i> Configuración Delay</h5>
         <div class="form-row" style="display: flex; gap: 0.5rem;">
-            <div class="form-group flex-1">
+            <div class="flex flex-col gap-1 w-full mb-3 flex-1">
                 <label>Duración</label>
                 <p-inputNumber [ngModel]="delayDuration()"
                     (ngModelChange)="delayDuration.set($event); onFieldChange()" [min]="1" [max]="3600"
                     styleClass="w-full" />
             </div>
-            <div class="form-group flex-1">
+            <div class="flex flex-col gap-1 w-full mb-3 flex-1">
                 <label>Unidad</label>
                 <p-select [options]="delayUnits" [ngModel]="delayUnit()"
                     (ngModelChange)="delayUnit.set($event); onFieldChange()" styleClass="w-full"

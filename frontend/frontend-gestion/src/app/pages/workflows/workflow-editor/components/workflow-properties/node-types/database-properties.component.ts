@@ -74,7 +74,7 @@ const DATABASE_TABLES: TableRecord[] = [
         <h5><i class="pi pi-database"></i> Configuración Database</h5>
 
         <!-- Tabla -->
-        <div class="form-group">
+        <div class="flex flex-col gap-1 w-full mb-3">
             <label>Tabla</label>
             <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.6rem;">
                 @for (table of databaseTables; track table.value) {
@@ -90,7 +90,7 @@ const DATABASE_TABLES: TableRecord[] = [
         </div>
 
         <!-- Operación -->
-        <div class="form-group mt-3">
+        <div class="flex flex-col gap-1 w-full mb-3 mt-3">
             <label>Operación</label>
             <p-select [options]="operations" [ngModel]="recordOperation()"
                 (ngModelChange)="recordOperation.set($event); onFieldChange()" placeholder="Selecciona una operación"
@@ -98,7 +98,7 @@ const DATABASE_TABLES: TableRecord[] = [
         </div>
 
         @if (recordFields().length > 0 && recordOperation() === 'CREATE') {
-        <div class="form-group mt-3">
+        <div class="flex flex-col gap-1 w-full mb-3 mt-3">
             <label style="margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.4rem;">
                 <i class="pi pi-list" style="color: #3b82f6; font-size: 0.85rem;"></i>
                 Datos del registro (CREATE)
@@ -133,14 +133,14 @@ const DATABASE_TABLES: TableRecord[] = [
         </div>
         }
 
-        <div class="form-group mt-3">
+        <div class="flex flex-col gap-1 w-full mb-3 mt-3">
             <p-button label="Probar Database" icon="pi pi-play" size="small" severity="secondary"
                 (onClick)="testActionNode()" [loading]="testingAction()" [disabled]="!recordJson()['table']" />
         </div>
 
         <!-- Resultados -->
         @if (actionTestResult()) {
-        <div class="form-group mt-3">
+        <div class="flex flex-col gap-1 w-full mb-3 mt-3">
             @if (actionTestResult()!.rows && actionTestResult()!.rows!.length > 0) {
             <label>Resultado ({{ actionTestResult()!.rows!.length }} registros)</label>
             <div style="overflow-x: auto; margin-top: 0.5rem; border-radius: 6px; border: 1px solid #334155;">

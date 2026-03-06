@@ -24,6 +24,14 @@ export class CreateWorkflowNodeDto {
   @IsOptional()
   config?: Record<string, any> | null;
 
+  @ApiPropertyOptional({
+    type: Object,
+    example: { body: { customerId: 1 } },
+  })
+  @IsObject()
+  @IsOptional()
+  dataSchema?: Record<string, any> | null;
+
   @ApiProperty({ type: Number, example: 100 })
   @IsNumber()
   x: number;

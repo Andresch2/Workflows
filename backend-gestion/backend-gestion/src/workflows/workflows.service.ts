@@ -68,6 +68,7 @@ export class WorkflowsService {
     return this.workflowNodeRepository.create({
       type: dto.type,
       config: dto.config,
+      dataSchema: dto.dataSchema,
       x: dto.x,
       y: dto.y,
       workflowId: dto.workflowId,
@@ -87,6 +88,7 @@ export class WorkflowsService {
     return this.workflowNodeRepository.update(id, {
       type: dto.type,
       config: dto.config,
+      dataSchema: dto.dataSchema,
       x: dto.x,
       y: dto.y,
       parentId: dto.parentId,

@@ -22,6 +22,7 @@ export interface WorkflowNode {
     id: string;
     type: WorkflowNodeType;
     config?: Record<string, any> | null;
+    dataSchema?: Record<string, any> | null;
     x: number;
     y: number;
     workflowId: string;
@@ -46,6 +47,7 @@ export interface UpdateWorkflowDto {
 export interface CreateWorkflowNodeDto {
     type: WorkflowNodeType;
     config?: Record<string, any> | null;
+    dataSchema?: Record<string, any> | null;
     x: number;
     y: number;
     workflowId: string;
@@ -55,6 +57,7 @@ export interface CreateWorkflowNodeDto {
 export interface UpdateWorkflowNodeDto {
     type?: WorkflowNodeType;
     config?: Record<string, any> | null;
+    dataSchema?: Record<string, any> | null;
     x?: number;
     y?: number;
     parentId?: string | null;

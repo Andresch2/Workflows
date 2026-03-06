@@ -4,144 +4,129 @@
         <label>Tipo</label>
         <p-tag [value]="getNodeLabel(node.type)" [style]="{ background: getNodeColor(node.type) }" />
     </div>
+
     <div class="config-section config-meta">
         <div style="display: flex; flex-direction: column; gap: 0.25rem;">
             <label>ID</label>
             <div style="display: flex; align-items: center; gap: 0.4rem;">
-                <small style="font-family: monospace; word-break: break-all; font-size: 0.75rem; color: #94a3b8;">{{
-                    node.id }}</small>
+                <small style="font-family: monospace; word-break: break-all; font-size: 0.75rem; color: #94a3b8;">{{ node.id }}</small>
                 <i class="pi pi-copy" style="cursor: pointer; font-size: 0.75rem; color: #64748b;"
                     (click)="copyToClipboard(node.id)" pTooltip="Copiar ID"></i>
             </div>
         </div>
-        <div><label>Posición</label><small>X: {{ node.x | number:'1.0-0' }}, Y: {{ node.y | number:'1.0-0' }}</small>
-        </div>
     </div>
-    @if (node.parentId) {
-    <div class="config-section">
-        <label>Padre</label>
-        <div style="display: flex; align-items: center; gap: 0.5rem;">
-            <small style="font-family: monospace; word-break: break-all; font-size: 0.75rem; color: #94a3b8;">{{
-                node.parentId }}</small>
-            <i class="pi pi-copy" style="cursor: pointer; font-size: 0.75rem; color: #64748b;"
-                (click)="copyToClipboard(node.parentId!)" pTooltip="Copiar ID Padre"></i>
-            <p-button icon="pi pi-times" size="small" [text]="true" severity="danger"
-                (onClick)="disconnectNode.emit(node)" pTooltip="Desconectar" />
-        </div>
-    </div>
-    }
 
-    <div style="flex: 1; overflow-y: auto; padding-right: 0.25rem;">
+    <div class="flex-1 overflow-y-auto pr-1 flex flex-col gap-4 mt-4">
+        <p-card styleClass="shadow-sm border border-gray-200 dark:border-slate-800">
+            @switch (node.type) {
+            @case ('HTTP') {
+            <app-http-properties [node]="node" [availableAncestors]="availableAncestors"
+                (configChange)="onConfigChangeFromChild($event)"></app-http-properties>
+            }
+            @case ('WEBHOOK') {
+            <app-webhook-properties [node]="node" [availableAncestors]="availableAncestors"
+                (configChange)="onConfigChangeFromChild($event)"></app-webhook-properties>
+            }
+            @case ('NOTIFICATION') {
+            <app-notification-properties [node]="node" [availableAncestors]="availableAncestors"
+                (configChange)="onConfigChangeFromChild($event)"></app-notification-properties>
+            }
+            @case ('DELAY') {
+            <app-delay-properties [node]="node" [availableAncestors]="availableAncestors"
+                (configChange)="onConfigChangeFromChild($event)"></app-delay-properties>
+            }
+            @case ('DATABASE') {
+            <app-database-properties [node]="node" [availableAncestors]="availableAncestors"
+                (configChange)="onConfigChangeFromChild($event)"></app-database-properties>
+            }
+            @case ('FORM') {
+            <app-form-properties [node]="node" [availableAncestors]="availableAncestors"
+                (configChange)="onConfigChangeFromChild($event)"></app-form-properties>
+            }
+            @case ('TRIGGER') {
+            <p class="text-xs text-gray-500">Nodo de entrada del workflow.</p>
+            }
+            }
+        </p-card>
 
-        <!-- ==================== Ancestor Data ==================== -->
-        @for (panel of ancestorPanels(); track panel.node.id) {
-        <div class="form-section parent-data-section"
-            style="background: #1e293b; border: 1px solid #334155; border-radius: 6px; margin-bottom: 1rem; padding: 0.75rem;">
-            <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;"
-                (click)="togglePanel(panel)">
-                <h5
-                    style="margin: 0; color: #e2e8f0; font-size: 0.85rem; display: flex; align-items: center; gap: 0.4rem;">
-                    <i class="pi pi-code" style="color: #3b82f6;"></i>
-                    Variables ({{ getNodeLabel(panel.node.type) }})
-                </h5>
-                <i class="pi" [ngClass]="panel.expanded ? 'pi-chevron-up' : 'pi-chevron-down'"
-                    style="font-size: 0.8rem; color: #94a3b8;"></i>
+        <p-accordion [multiple]="true" [value]="expandedPanels()">
+            <p-accordion-panel value="globals">
+                <p-accordion-header>
+                    <span class="flex items-center gap-2 text-sm">
+                        <i class="pi pi-globe text-emerald-500"></i>
+                        Variables Globales
+                    </span>
+                </p-accordion-header>
+                <p-accordion-content>
+                    <div class="bg-slate-900 border border-slate-700 rounded-lg max-h-48 overflow-y-auto">
+                        <p-tree [value]="globalTreeNodes()"
+                            [style]="{'background': 'transparent', 'border': 'none', 'color': '#e2e8f0', 'padding': '0.5rem'}">
+                            <ng-template let-node pTemplate="default">
+                                <div [attr.draggable]="node.leaf ? 'true' : null"
+                                    (dragstart)="node.leaf ? onFieldDragStart($event, node.data.path) : null"
+                                    class="flex items-center gap-2 w-full"
+                                    [ngClass]="{'cursor-grab hover:bg-slate-800 p-1 rounded': node.leaf}">
+                                    <i [class]="node.icon" class="text-slate-400 text-xs"></i>
+                                    <span class="font-mono text-slate-200 text-xs">{{ node.label }}</span>
+                                </div>
+                            </ng-template>
+                        </p-tree>
+                    </div>
+                </p-accordion-content>
+            </p-accordion-panel>
+
+            @for (panel of ancestorPanels(); track panel.node.id) {
+            <p-accordion-panel [value]="panel.node.id">
+                <p-accordion-header>
+                    <span class="flex items-center gap-2 text-sm">
+                        <i class="pi pi-code text-blue-500"></i>
+                        {{ getNodeLabel(panel.node.type) }} (Previo)
+                    </span>
+                </p-accordion-header>
+                <p-accordion-content>
+                    <div class="bg-slate-900 border border-slate-700 rounded-lg max-h-60 overflow-y-auto">
+                        <p-tree [value]="panel.treeNodes"
+                            [style]="{'background': 'transparent', 'border': 'none', 'color': '#e2e8f0', 'padding': '0.5rem'}">
+                            <ng-template let-node pTemplate="default">
+                                <div [attr.draggable]="node.leaf ? 'true' : null"
+                                    (dragstart)="node.leaf ? onFieldDragStart($event, node.data.path) : null"
+                                    class="flex items-center gap-2 w-full"
+                                    [ngClass]="{'cursor-grab hover:bg-slate-800 p-1 rounded': node.leaf}">
+                                    <i [class]="node.icon" class="text-slate-400 text-xs"></i>
+                                    <span class="font-mono text-slate-200 text-xs">{{ node.label }}</span>
+                                    @if (node.data?.type) {
+                                    <span [ngStyle]="getTypeBadgeStyle(node.data.type)"
+                                        class="text-[0.6rem] px-1.5 py-0.5 rounded font-semibold ml-auto">
+                                        {{ node.data.type }}
+                                    </span>
+                                    }
+                                </div>
+                            </ng-template>
+                        </p-tree>
+                    </div>
+                </p-accordion-content>
+            </p-accordion-panel>
+            }
+        </p-accordion>
+
+        <p-card styleClass="shadow-sm border border-gray-200 dark:border-slate-800">
+            <div class="flex items-center gap-2 cursor-pointer text-sm font-semibold mb-2"
+                (click)="showAdvancedJson.set(!showAdvancedJson())">
+                <i class="pi" [ngClass]="showAdvancedJson() ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
+                <span>JSON Avanzado</span>
             </div>
-
-            @if (panel.expanded) {
-            <div style="margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.4rem;">
-                <small style="color: #94a3b8; font-size: 0.75rem; display: block; margin-bottom: 0.25rem;">Arrastra a
-                    tus inputs:</small>
-
-                <div
-                    style="background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 0.5rem; max-height: 250px; overflow-y: auto;">
-                    <p-tree [value]="panel.treeNodes"
-                        [style]="{'background': 'transparent', 'border': 'none', 'color': '#e2e8f0', 'padding': '0'}">
-                        <ng-template let-node pTemplate="default">
-                            <div [class.parent-field-chip]="node.leaf" [attr.draggable]="node.leaf ? 'true' : null"
-                                (dragstart)="node.leaf ? onFieldDragStart($event, node.data.path) : null"
-                                style="display: flex; align-items: center; gap: 0.5rem; width: 100%; transition: all 0.2s;"
-                                [style.cursor]="node.leaf ? 'grab' : 'default'">
-                                <i [class]="node.icon" style="color: #64748b; font-size: 0.75rem;"></i>
-                                <span
-                                    style="font-family: monospace; color: #e2e8f0; font-size: 0.8rem; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px;">
-                                    {{ node.label }}
-                                </span>
-                                @if (node.data?.type) {
-                                <span [ngStyle]="getTypeBadgeStyle(node.data.type)"
-                                    style="font-size: 0.60rem; padding: 0.1rem 0.3rem; border-radius: 4px; font-weight: 600; margin-left: auto;">
-                                    {{ node.data.type }}
-                                </span>
-                                }
-                                @if (node.leaf) {
-                                <i class="pi pi-arrows-alt"
-                                    style="color: #475569; font-size: 0.7rem; margin-left: 0.4rem;"></i>
-                                }
-                            </div>
-                        </ng-template>
-                    </p-tree>
-                </div>
+            @if (showAdvancedJson()) {
+            <div class="flex flex-col gap-2 mt-2">
+                <textarea class="w-full bg-slate-900 text-slate-200 font-mono text-xs p-3 rounded"
+                    [class.border-red-500]="!configValid()" [value]="configJson()"
+                    (input)="onConfigChange($any($event.target).value)" rows="8"></textarea>
             </div>
             }
-        </div>
-        }
-
-        <!-- ==================== Componentes Dinámicos de Propiedades ==================== -->
-        @switch (node.type) {
-        @case ('HTTP') {
-        <app-http-properties [node]="node" [availableAncestors]="availableAncestors"
-            (configChange)="onConfigChangeFromChild($event)"></app-http-properties>
-        }
-        @case ('WEBHOOK') {
-        <app-webhook-properties [node]="node" [availableAncestors]="availableAncestors"
-            (configChange)="onConfigChangeFromChild($event)"></app-webhook-properties>
-        }
-        @case ('NOTIFICATION') {
-        <app-notification-properties [node]="node" [availableAncestors]="availableAncestors"
-            (configChange)="onConfigChangeFromChild($event)"></app-notification-properties>
-        }
-        @case ('DELAY') {
-        <app-delay-properties [node]="node" [availableAncestors]="availableAncestors"
-            (configChange)="onConfigChangeFromChild($event)"></app-delay-properties>
-        }
-        @case ('DATABASE') {
-        <app-database-properties [node]="node" [availableAncestors]="availableAncestors"
-            (configChange)="onConfigChangeFromChild($event)"></app-database-properties>
-        }
-        @case ('FORM') {
-        <app-form-properties [node]="node" [availableAncestors]="availableAncestors"
-            (configChange)="onConfigChangeFromChild($event)"></app-form-properties>
-        }
-        @case ('TRIGGER') {
-        <div class="form-section">
-            <h5><i class="pi pi-bolt"></i> Nodo Trigger</h5>
-            <p class="trigger-info">
-                Este es el punto de entrada del workflow. Se activa automáticamente cuando se ejecuta el flujo
-                (vía HTTP o Webhook según el tipo del workflow).
-            </p>
-        </div>
-        }
-        }
-
-        <!-- ==================== Advanced JSON Toggle ==================== -->
-        <div class="json-toggle" (click)="showAdvancedJson.set(!showAdvancedJson())">
-            <i class="pi" [ngClass]="showAdvancedJson() ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
-            <span>JSON Avanzado</span>
-        </div>
-        @if (showAdvancedJson()) {
-        <div class="config-section">
-            <textarea class="config-textarea" [class.invalid]="!configValid()" [value]="configJson()"
-                (input)="onConfigChange($any($event.target).value)" rows="8"></textarea>
-            @if (!configValid()) {
-            <small class="error-text"><i class="pi pi-exclamation-triangle"></i> JSON inválido</small>
-            }
-        </div>
-        }
-    </div> <!-- End of scrollable area -->
+        </p-card>
+    </div>
 
     <div class="config-actions">
         <p-button label="Conectar" icon="pi pi-link" severity="info" (onClick)="connectNode.emit(node)" size="small" />
-        <p-button label="Eliminar" icon="pi pi-trash" severity="danger" (onClick)="deleteNode.emit(node)"
-            size="small" />
+        <p-button label="Eliminar" icon="pi pi-trash" severity="danger" (onClick)="deleteNode.emit(node)" size="small" />
     </div>
 </div>

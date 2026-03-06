@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { WorkflowNode } from '../domain/workflow-node';
 import { WorkflowNodeType } from '../domain/workflow-node-type.enum';
 import { WorkflowNodeRepository } from '../infrastructure/persistence/workflow-node.repository';
@@ -74,10 +75,28 @@ export class WorkflowEngineService {
     const childMap = this.buildChildMap(nodes);
 
     // 4. Contexto de ejecución
+    const now = new Date();
+    const executionId =
+      typeof initialContext?.execution_id === 'string'
+        ? initialContext.execution_id
+        : randomUUID();
+
     const context: WorkflowContext = {
       workflowId,
+      env: {
+        now: now.toISOString(),
+        today: now.toISOString().split('T')[0],
+        execution_id: executionId,
+      },
+      globals: {
+        now: now.toISOString(),
+        today: now.toISOString().split('T')[0],
+        execution_id: executionId,
+      },
       nodes: {}, // Memoria global: resultados de cada nodo
       ...initialContext,
+      $now: now.toISOString(),
+      $execution_id: executionId,
     };
 
     // 5. Recorrer el árbol y ejecutar nodos
@@ -148,19 +167,40 @@ export class WorkflowEngineService {
     }
     visited.add(node.id);
 
+    const parentResult = node.parentId ? context.nodes?.[node.parentId] : undefined;
+    const inputData =
+      parentResult && typeof parentResult === 'object' && 'data' in parentResult
+        ? parentResult.data
+        : parentResult;
+    const effectiveInput =
+      inputData ?? context.$json ?? context.webhookPayload ?? context.input ?? {};
+
     // Ejecutar handler del nodo
     const handler = this.handlers.get(node.type);
+    const nodeConfig = node.config || {};
+    const nodeContext: WorkflowContext = {
+      ...context,
+      input: effectiveInput,
+      $json: effectiveInput,
+      $prev: parentResult ?? null,
+      $globals: context.globals || {},
+      $env: context.env || {},
+      $node: context.nodes || {},
+    };
     if (handler) {
       this.logger.log(`Ejecutando nodo ${node.id} (${node.type})`);
 
-      if (step?.run) {
-        // Ejecución durable con Inngest step.run()
+      if (node.type === WorkflowNodeType.DELAY) {
+        // Delay usa step.sleep() directamente — NO se puede anidar dentro de step.run()
+        results[node.id] = await handler.execute(node, nodeContext, step);
+      } else if (step?.run) {
+        // Ejecución durable con Inngest step.run() — no pasar `step` para evitar nesting
         results[node.id] = await step.run(`node-${node.id}`, async () => {
-          return handler.execute(node, context, step);
+          return handler.execute(node, nodeContext, undefined);
         });
       } else {
-        // Ejecución directa
-        results[node.id] = await handler.execute(node, context, step);
+        // Ejecución directa (sin Inngest)
+        results[node.id] = await handler.execute(node, nodeContext, undefined);
       }
     } else {
       // Nodo TRIGGER u otro sin handler: registrar y continuar
@@ -171,16 +211,36 @@ export class WorkflowEngineService {
       const nodeResult: any = { status: 'passed', type: node.type };
 
       // Pasar el webhookPayload al resultado de este nodo (memoria global)
-      if (node.type === 'WEBHOOK' && context.webhookPayload) {
-        nodeResult.data = { webhookPayload: context.webhookPayload };
+      if (node.type === 'WEBHOOK') {
+        if (context.webhook && typeof context.webhook === 'object') {
+          nodeResult.data = {
+            body: context.webhook.body || {},
+            headers: context.webhook.headers || {},
+            query: context.webhook.query || {},
+          };
+        } else if (context.webhookPayload) {
+          nodeResult.data = { body: context.webhookPayload };
+        }
       }
 
       results[node.id] = nodeResult;
     }
 
     // Guardar el resultado en la memoria global del contexto
+    let nodeResult: Record<string, any>;
+    if (results[node.id] && typeof results[node.id] === 'object') {
+      nodeResult = { ...(results[node.id] as Record<string, any>) };
+    } else {
+      nodeResult = { status: 'success', data: results[node.id] };
+    }
+
+    if (!Object.prototype.hasOwnProperty.call(nodeResult, 'data')) {
+      nodeResult.data = nodeResult;
+    }
+
+    results[node.id] = nodeResult;
     context.nodes = context.nodes || {};
-    context.nodes[node.id] = results[node.id];
+    context.nodes[node.id] = nodeResult;
 
     // Procesar hijos recursivamente
     const children = childMap.get(node.id) || [];

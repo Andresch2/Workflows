@@ -59,26 +59,27 @@ export class WorkflowEditorComponent implements OnInit {
     availableAncestors = computed<EditorNode[]>(() => {
         const selected = this.selectedNode();
         if (!selected) return [];
+        return this.calculateAncestors(selected.id);
+    });
 
+    calculateAncestors(currentNodeId: string, visited: Set<string> = new Set()): EditorNode[] {
         const allNodes = this.nodes();
-        const ancestors: EditorNode[] = [];
-        let currentParentId = selected.parentId;
+        const node = allNodes.find(n => n.id === currentNodeId);
 
-        // Prevención de ciclos
-        const visited = new Set<string>();
-        visited.add(selected.id);
-
-        while (currentParentId) {
-            const parent = allNodes.find(n => n.id === currentParentId);
-            if (!parent || visited.has(parent.id)) break;
-
-            ancestors.push(parent);
-            visited.add(parent.id);
-            currentParentId = parent.parentId;
+        if (!node || !node.parentId || visited.has(node.id)) {
+            return [];
         }
 
-        return ancestors.reverse(); // Orden: desde la raíz hasta el padre inmediato
-    });
+        visited.add(node.id);
+        const parent = allNodes.find(n => n.id === node.parentId);
+
+        if (!parent) {
+            return [];
+        }
+
+        const ancestors = this.calculateAncestors(parent.id, visited);
+        return [...ancestors, parent];
+    }
 
     // IDs de nodos eliminados (para borrar del backend al guardar)
     deletedNodeIds: string[] = [];
@@ -273,11 +274,23 @@ export class WorkflowEditorComponent implements OnInit {
         const node = this.selectedNode();
         if (!node) return;
 
+        const schemaCandidate = config['__dataSchema'];
+        let nextConfig = config;
+        let nextDataSchema = node.dataSchema;
+
+        if (Object.prototype.hasOwnProperty.call(config, '__dataSchema')) {
+            nextConfig = { ...config };
+            delete nextConfig['__dataSchema'];
+            nextDataSchema = schemaCandidate && typeof schemaCandidate === 'object'
+                ? schemaCandidate
+                : null;
+        }
+
         this.nodes.update(nodes =>
-            nodes.map(n => n.id === node.id ? { ...n, config } : n),
+            nodes.map(n => n.id === node.id ? { ...n, config: nextConfig, dataSchema: nextDataSchema } : n),
         );
 
-        this.selectedNode.set({ ...node, config });
+        this.selectedNode.set({ ...node, config: nextConfig, dataSchema: nextDataSchema });
     }
 
     // ==================== Delete Node ====================
@@ -321,6 +334,7 @@ export class WorkflowEditorComponent implements OnInit {
                     const dto: CreateWorkflowNodeDto = {
                         type: node.type,
                         config: node.config,
+                        dataSchema: node.dataSchema,
                         x: node.x,
                         y: node.y,
                         workflowId: this.workflowId,
@@ -349,6 +363,7 @@ export class WorkflowEditorComponent implements OnInit {
                 await this.workflowService.updateNode(realId, {
                     type: node.type,
                     config: node.config,
+                    dataSchema: node.dataSchema,
                     x: node.x,
                     y: node.y,
                     parentId: parentId || null,

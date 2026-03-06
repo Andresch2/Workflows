@@ -15,94 +15,85 @@ import { WorkflowService } from '../../../../../../core/services/workflow.servic
     imports: [CommonModule, FormsModule, InputTextModule, TextareaModule, SelectModule, ButtonModule],
     template: `
     <div class="form-section">
-      <h5><i class="pi pi-globe"></i> Configuración HTTP</h5>
-      <div class="form-group">
-          <label>Método</label>
-          <p-select [options]="httpMethods" [ngModel]="httpMethod()"
-              (ngModelChange)="httpMethod.set($event); onFieldChange()" placeholder="Método"
-              styleClass="w-full" appendTo="body" />
-      </div>
-      <div class="form-group">
-          <label>URL</label>
-          <input pInputText [ngModel]="httpUrl()" (ngModelChange)="httpUrl.set($event); onFieldChange()"
-              placeholder="https://api.example.com/data" class="w-full" />
-      </div>
-      @if (httpMethod() !== 'GET') {
-      <div class="form-group">
-          <label>Body</label>
-          <textarea pTextarea [ngModel]="httpBody()" (ngModelChange)="httpBody.set($event); onFieldChange()"
-              [placeholder]="placeholderBody" rows="4" class="w-full"
-              style="font-family: monospace;"></textarea>
-          <small style="display: block; margin-top: 0.5rem; color: #6b7280; font-size: 0.75rem; line-height: 1.2;">
-              <i>Tip:</i> Usa <code ngNonBindable>&#123;&#123; nodes.ID.data.variable &#125;&#125;</code> para inyectar datos dinámicos.<br>
-              Envía <code ngNonBindable>"&#123;&#123; __FULL_PAYLOAD__ &#125;&#125;"</code> para retransmitir todo.
-          </small>
-      </div>
-      }
-      <div class="form-group">
-          <label>Headers (JSON) <small class="optional">opcional</small></label>
-          <textarea pTextarea [ngModel]="httpHeaders()"
-              (ngModelChange)="httpHeaders.set($event); onFieldChange()"
-              placeholder='{ "Authorization": "Bearer ..." }' rows="3" class="w-full"
-              style="font-family: monospace;"></textarea>
-      </div>
+        <h5><i class="pi pi-globe"></i> HTTP (Postman Style)</h5>
 
-      <div class="form-group" style="margin-top: 1.5rem;">
-          <label style="font-weight: 600; margin-bottom: 0.5rem; display: block; color: #e2e8f0;">
-              <i class="pi pi-code" style="margin-right: 0.3rem;"></i> JSON Resultante (Esquema de Variables)
-          </label>
-          <textarea pTextarea [ngModel]="sampleJsonText()" (ngModelChange)="onSampleJsonChange($event)"
-              placeholder='{ "id": 123, "data": "test" }' rows="6" class="w-full"
-              style="background: #0f172a; border: 1px solid #334155; color: #e2e8f0; font-family: monospace;"></textarea>
-          @if (jsonError()) {
-              <small style="color: #ef4444; font-size: 0.75rem; display: block; margin-top: 0.4rem;">
-                  <i class="pi pi-exclamation-triangle"></i> Formato JSON inválido.
-              </small>
-          } @else {
-              <small style="color: #64748b; font-size: 0.75rem; display: block; margin-top: 0.4rem;">
-                  Puedes probar la petición arriba y se guardará automáticamente aquí.
-              </small>
-          }
-      </div>
+        <div class="flex flex-col gap-1 w-full mb-3">
+            <label>Método</label>
+            <p-select [options]="httpMethods" [ngModel]="httpMethod()"
+                (ngModelChange)="httpMethod.set($event); emitConfig()"
+                styleClass="w-full" appendTo="body" />
+        </div>
 
-      <div class="form-group mt-3">
-          <p-button label="Probar Petición" icon="pi pi-play" size="small" severity="secondary"
-              (onClick)="testHttpNode()" [loading]="testingHttp()" />
-      </div>
+        <div class="flex flex-col gap-1 w-full mb-3">
+            <label>URL</label>
+            <input pInputText [ngModel]="httpUrl()"
+                (ngModelChange)="httpUrl.set($event); emitConfig()"
+                class="w-full" placeholder="https://api.example.com/resource" />
+        </div>
 
-      @if (httpTestResult()) {
-      <div class="form-group mt-3">
-          <label>Respuesta (JSON)</label>
-          <textarea pTextarea [value]="httpTestResult()" readonly rows="8" class="w-full"
-              style="background-color: #1e293b; color: #e2e8f0; font-family: monospace; font-size: 0.85rem; border-radius: 6px;"></textarea>
-      </div>
-      }
+        <div style="display:flex; gap:.5rem; margin-bottom:.75rem;">
+            <button pButton type="button" [severity]="activeTab() === 'headers' ? 'primary' : 'secondary'" size="small"
+                label="Headers" (click)="activeTab.set('headers')"></button>
+            <button pButton type="button" [severity]="activeTab() === 'body' ? 'primary' : 'secondary'" size="small"
+                label="Raw JSON Body" (click)="activeTab.set('body')"></button>
+            <button pButton type="button" [severity]="activeTab() === 'expected' ? 'primary' : 'secondary'" size="small"
+                label="Expected Response" (click)="activeTab.set('expected')"></button>
+        </div>
+
+        @if (activeTab() === 'headers') {
+            <textarea pTextarea [ngModel]="httpHeadersRaw()"
+                (ngModelChange)="httpHeadersRaw.set($event); emitConfig()"
+                rows="6" class="w-full" style="font-family: monospace;"
+                placeholder='{"Authorization":"Bearer ..."}'></textarea>
+        }
+
+        @if (activeTab() === 'body') {
+            <textarea pTextarea [ngModel]="httpBodyRaw()"
+                (ngModelChange)="httpBodyRaw.set($event); emitConfig()"
+                rows="10" class="w-full" style="font-family: monospace;"
+                [placeholder]="bodyPlaceholder"></textarea>
+        }
+
+        @if (activeTab() === 'expected') {
+            <textarea pTextarea [ngModel]="expectedResponseRaw()"
+                (ngModelChange)="onExpectedResponseChange($event)"
+                rows="10" class="w-full" style="font-family: monospace;"
+                placeholder='{"ok": true, "id": 1}'></textarea>
+            @if (!expectedResponseValid()) {
+                <small style="color:#ef4444;">Expected Response inválido</small>
+            }
+        }
+
+        <div class="flex flex-col gap-1 w-full mt-3">
+            <p-button label="Probar HTTP" icon="pi pi-play" size="small" severity="secondary"
+                (onClick)="testHttpNode()" [loading]="testingHttp()" />
+        </div>
     </div>
-  `
+  `,
 })
 export class HttpPropertiesComponent implements OnChanges {
     @Input({ required: true }) node!: EditorNode;
     @Input() availableAncestors: EditorNode[] = [];
     @Output() configChange = new EventEmitter<Record<string, any>>();
 
-    workflowService = inject(WorkflowService);
-    messageService = inject(MessageService);
+    private workflowService = inject(WorkflowService);
+    private messageService = inject(MessageService);
 
     httpMethod = signal('POST');
     httpUrl = signal('');
-    httpBody = signal('');
-    httpHeaders = signal('');
-    sampleJsonText = signal('');
-    jsonError = signal(false);
-    placeholderBody = '{ "key": "{{ nodes.ID.data.variable }}" }';
-
+    httpBodyRaw = signal('{}');
+    httpHeadersRaw = signal('{}');
+    expectedResponseRaw = signal('{}');
+    expectedResponseValid = signal(true);
+    activeTab = signal<'headers' | 'body' | 'expected'>('body');
     testingHttp = signal(false);
-    httpTestResult = signal('');
+    bodyPlaceholder = '{"cliente_id":"{{ $json.body.cliente_id }}"}';
 
     httpMethods = [
         { label: 'GET', value: 'GET' },
         { label: 'POST', value: 'POST' },
         { label: 'PUT', value: 'PUT' },
+        { label: 'PATCH', value: 'PATCH' },
         { label: 'DELETE', value: 'DELETE' },
     ];
 
@@ -111,86 +102,82 @@ export class HttpPropertiesComponent implements OnChanges {
             const config = this.node.config || {};
             this.httpMethod.set((config['method'] || 'POST').toUpperCase());
             this.httpUrl.set(config['url'] || '');
-            this.httpBody.set(config['body'] ? (typeof config['body'] === 'string' ? config['body'] : JSON.stringify(config['body'], null, 2)) : '');
-            this.httpHeaders.set(config['headers'] ? (typeof config['headers'] === 'string' ? config['headers'] : JSON.stringify(config['headers'], null, 2)) : '');
-            this.httpTestResult.set('');
+            this.httpBodyRaw.set(typeof config['bodyRaw'] === 'string' ? config['bodyRaw'] : JSON.stringify(config['bodyRaw'] || {}, null, 2));
+            this.httpHeadersRaw.set(typeof config['headersRaw'] === 'string' ? config['headersRaw'] : JSON.stringify(config['headersRaw'] || {}, null, 2));
 
-            if (config['sampleJson']) {
-                this.sampleJsonText.set(typeof config['sampleJson'] === 'string' ? config['sampleJson'] : JSON.stringify(config['sampleJson'], null, 2));
-            } else {
-                this.sampleJsonText.set('');
-            }
+            const expected = this.node.dataSchema || {};
+            this.expectedResponseRaw.set(JSON.stringify(expected, null, 2));
+            this.expectedResponseValid.set(true);
         }
     }
 
-    onSampleJsonChange(val: string) {
-        this.sampleJsonText.set(val);
-        try {
-            if (val.trim() === '') {
-                this.jsonError.set(false);
-                this.onFieldChange();
-                return;
-            }
-            JSON.parse(val);
-            this.jsonError.set(false);
-            this.onFieldChange();
-        } catch {
-            this.jsonError.set(true);
-        }
-    }
-
-    onFieldChange() {
-        let sampleJson = null;
-        if (this.sampleJsonText().trim() !== '' && !this.jsonError()) {
-            try { sampleJson = JSON.parse(this.sampleJsonText()); } catch { }
-        }
-
-        const config = {
+    private buildConfig(): Record<string, any> {
+        return {
             method: this.httpMethod(),
             url: this.httpUrl(),
-            ...(this.httpMethod() !== 'GET' && this.httpBody() ? { body: this.safeParseJson(this.httpBody()) } : {}),
-            ...(this.httpHeaders() ? { headers: this.safeParseJson(this.httpHeaders()) } : {}),
-            sampleJson
+            headersRaw: this.httpHeadersRaw(),
+            bodyRaw: this.httpBodyRaw(),
         };
-        // Clean out undefined
-        if (!sampleJson) delete config.sampleJson;
-
-        this.configChange.emit(config);
     }
 
-    private safeParseJson(value: string): any {
-        try { return JSON.parse(value); } catch { return value; }
+    emitConfig() {
+        const current = this.buildConfig();
+        this.configChange.emit({
+            ...current,
+            __dataSchema: this.safeParseJson(this.expectedResponseRaw()),
+        });
+    }
+
+    onExpectedResponseChange(value: string) {
+        this.expectedResponseRaw.set(value);
+        try {
+            JSON.parse(value || '{}');
+            this.expectedResponseValid.set(true);
+            this.emitConfig();
+        } catch {
+            this.expectedResponseValid.set(false);
+        }
     }
 
     testHttpNode() {
         if (!this.httpUrl()) {
-            this.messageService.add({ severity: 'warn', summary: 'Atención', detail: 'Debe especificar una URL' });
+            this.messageService.add({ severity: 'warn', summary: 'Atención', detail: 'La URL es obligatoria' });
             return;
         }
+
         this.testingHttp.set(true);
-        const config = {
+        const payload = {
             method: this.httpMethod(),
             url: this.httpUrl(),
-            ...(this.httpBody() && this.httpMethod() !== 'GET' ? { body: this.safeParseJson(this.httpBody()) } : {}),
-            ...(this.httpHeaders() ? { headers: this.safeParseJson(this.httpHeaders()) } : {}),
+            headers: this.safeParseJson(this.httpHeadersRaw()),
+            body: this.safeParseJson(this.httpBodyRaw()),
         };
 
-        this.workflowService.testHttpNode(config).subscribe({
+        this.workflowService.testHttpNode(payload).subscribe({
             next: (res) => {
-                const responseJsonStr = JSON.stringify(res.data, null, 2);
-                this.httpTestResult.set(responseJsonStr);
+                const expected = res?.data ?? {};
+                this.expectedResponseRaw.set(JSON.stringify(expected, null, 2));
+                this.expectedResponseValid.set(true);
                 this.testingHttp.set(false);
-
-                // --- AUTO SAVE THE RESPONSE TO SAMPLE JSON ---
-                this.sampleJsonText.set(responseJsonStr);
-                this.jsonError.set(false);
-                this.onFieldChange();
+                this.emitConfig();
+                this.messageService.add({ severity: 'success', summary: 'HTTP OK', detail: 'Expected Response actualizado' });
             },
             error: (err) => {
-                const errMsg = err.error?.error || err.message || 'Error en la petición';
-                this.httpTestResult.set(JSON.stringify({ error: errMsg }, null, 2));
                 this.testingHttp.set(false);
-            }
+                this.messageService.add({
+                    severity: 'error',
+                    summary: 'Error HTTP',
+                    detail: err?.error?.message || err?.message || 'No se pudo probar el nodo HTTP',
+                });
+            },
         });
+    }
+
+    private safeParseJson(value: string): any {
+        try {
+            return JSON.parse(value);
+        } catch {
+            return value;
+        }
     }
 }
