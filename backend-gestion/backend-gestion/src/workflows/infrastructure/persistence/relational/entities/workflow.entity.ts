@@ -25,7 +25,10 @@ export class WorkflowEntity extends EntityRelationalHelper {
   description?: string | null;
 
   @Column({ type: 'varchar', nullable: false })
-  triggerType: 'webhook' | 'http';
+  triggerType: 'webhook' | 'http' | 'event';
+
+  @Column({ type: 'varchar', nullable: true })
+  eventName?: string | null;
 
   @Column({ nullable: true, type: 'uuid' })
   projectId?: string | null;

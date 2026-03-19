@@ -4,12 +4,15 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
+import { DialogModule } from 'primeng/dialog';
+import { TextareaModule } from 'primeng/textarea';
 import { TagModule } from 'primeng/tag';
 import { ToastModule } from 'primeng/toast';
 import {
     CreateWorkflowNodeDto,
     EditorNode,
     Workflow,
+    WorkflowConnection,
     WorkflowNodeType
 } from '../../../core/models/workflow.model';
 import { WorkflowService } from '../../../core/services/workflow.service';
@@ -27,6 +30,8 @@ import { ToolboxItem, WorkflowToolboxComponent } from './components/workflow-too
         ButtonModule,
         ToastModule,
         TagModule,
+        DialogModule,
+        TextareaModule,
         WorkflowPropertiesComponent,
         WorkflowToolboxComponent,
         WorkflowCanvasComponent,
@@ -40,49 +45,38 @@ export class WorkflowEditorComponent implements OnInit {
     workflowId = '';
     workflow = signal<Workflow | null>(null);
     nodes = signal<EditorNode[]>([]);
+    connections = signal<WorkflowConnection[]>([]);
     selectedNode = signal<EditorNode | null>(null);
     connecting = signal(false);
     connectingFromId = signal<string | null>(null);
+    connectingSourceHandle = signal<string | null>(null);
     saving = signal(false);
     simulating = signal(false);
     executing = signal(false);
     simulationIndex = signal(0);
+    showExecutionDialog = signal(false);
+    executionPayload = signal('{}');
 
-    // Nodo padre del seleccionado actualmente
-    parentNode = computed<EditorNode | null>(() => {
-        const selected = this.selectedNode();
-        if (!selected || !selected.parentId) return null;
-        return this.nodes().find(n => n.id === selected.parentId) || null;
-    });
-
-    // Fase 4: Todos los ancestros del nodo seleccionado
+    // Ancestros del nodo seleccionado (basado en conexiones del grafo)
     availableAncestors = computed<EditorNode[]>(() => {
         const selected = this.selectedNode();
         if (!selected) return [];
-        return this.calculateAncestors(selected.id);
+        return this.calculateAncestorsFromGraph(selected.id);
     });
 
-    calculateAncestors(currentNodeId: string, visited: Set<string> = new Set()): EditorNode[] {
-        const allNodes = this.nodes();
-        const node = allNodes.find(n => n.id === currentNodeId);
-
-        if (!node || !node.parentId || visited.has(node.id)) {
-            return [];
-        }
-
-        visited.add(node.id);
-        const parent = allNodes.find(n => n.id === node.parentId);
-
-        if (!parent) {
-            return [];
-        }
-
-        const ancestors = this.calculateAncestors(parent.id, visited);
-        return [...ancestors, parent];
-    }
+    // Nodo padre inmediato del seleccionado (primer upstream)
+    parentNode = computed<EditorNode | null>(() => {
+        const selected = this.selectedNode();
+        if (!selected) return null;
+        const conns = this.connections();
+        const incoming = conns.filter(c => c.targetNodeId === selected.id);
+        if (incoming.length === 0) return null;
+        return this.nodes().find(n => n.id === incoming[0].sourceNodeId) || null;
+    });
 
     // IDs de nodos eliminados (para borrar del backend al guardar)
     deletedNodeIds: string[] = [];
+    deletedConnectionIds: string[] = [];
 
     // Estado de drag
     dragging = false;
@@ -90,12 +84,18 @@ export class WorkflowEditorComponent implements OnInit {
     dragOffsetX = 0;
     dragOffsetY = 0;
 
-    // Nodos ordenados para simulación (DFS desde raíz)
+    // Nodos ordenados para simulación (topological sort)
     simulationOrder = computed<EditorNode[]>(() => {
         const allNodes = this.nodes();
+        const conns = this.connections();
+
+        if (conns.length > 0) {
+            return this.topologicalSort(allNodes, conns);
+        }
+
+        // Fallback legacy: DFS por parentId
         const root = allNodes.find(n => !n.parentId);
         if (!root) return [];
-
         const order: EditorNode[] = [];
         const visited = new Set<string>();
         const childMap = new Map<string, EditorNode[]>();
@@ -112,12 +112,10 @@ export class WorkflowEditorComponent implements OnInit {
             if (visited.has(node.id)) return;
             visited.add(node.id);
             order.push(node);
-            const children = childMap.get(node.id) || [];
-            for (const child of children) {
+            for (const child of childMap.get(node.id) || []) {
                 dfs(child);
             }
         };
-
         dfs(root);
         return order;
     });
@@ -134,6 +132,7 @@ export class WorkflowEditorComponent implements OnInit {
         if (this.workflowId) {
             this.loadWorkflow();
             this.loadNodes();
+            this.loadConnections();
         }
     }
 
@@ -150,6 +149,13 @@ export class WorkflowEditorComponent implements OnInit {
                 this.nodes.set(nodes.map(n => ({ ...n, selected: false, active: false })));
             },
             error: () => this.messageService.add({ severity: 'error', summary: 'Error', detail: 'No se pudieron cargar los nodos' }),
+        });
+    }
+
+    loadConnections() {
+        this.workflowService.getConnectionsByWorkflowId(this.workflowId).subscribe({
+            next: (conns) => this.connections.set(conns),
+            error: () => this.messageService.add({ severity: 'error', summary: 'Error', detail: 'No se pudieron cargar las conexiones' }),
         });
     }
 
@@ -173,7 +179,6 @@ export class WorkflowEditorComponent implements OnInit {
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
 
-        // Validar que solo haya un TRIGGER
         if (type === WorkflowNodeType.TRIGGER) {
             const hasTrigger = this.nodes().some(n => n.type === WorkflowNodeType.TRIGGER);
             if (hasTrigger) {
@@ -183,8 +188,12 @@ export class WorkflowEditorComponent implements OnInit {
         }
 
         const tempId = 'temp-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6);
+        const nodeCount = this.nodes().filter(n => n.type === type).length + 1;
+        const defaultName = `${type}_${nodeCount}`;
+
         const newNode: EditorNode = {
             id: tempId,
+            name: defaultName,
             type,
             config: {},
             x,
@@ -200,7 +209,7 @@ export class WorkflowEditorComponent implements OnInit {
         this.nodes.update(nodes => [...nodes, newNode]);
     }
 
-    // ==================== Node Handling on Canvas ====================
+    // ==================== Node Handling ====================
 
     updateNodePosition(event: { id: string, x: number, y: number }) {
         this.nodes.update(nodes =>
@@ -210,15 +219,42 @@ export class WorkflowEditorComponent implements OnInit {
 
     // ==================== Selection ====================
 
+    removeConnection(connectionId: string) {
+        console.log('Editor: Removiendo conexión:', connectionId);
+        const conn = this.connections().find(c => c.id === connectionId);
+        if (!conn) return;
+
+        this.connections.update(conns => conns.filter(c => c.id !== connectionId));
+
+        if (!conn.id.startsWith('temp-')) {
+            this.deletedConnectionIds.push(conn.id);
+        }
+
+        // Update parentId if this was the only connection
+        const remaining = this.connections().filter(c => c.targetNodeId === conn.targetNodeId);
+        if (remaining.length === 0) {
+            this.nodes.update(nodes =>
+                nodes.map(n => n.id === conn.targetNodeId ? { ...n, parentId: null } : n)
+            );
+        }
+
+        this.messageService.add({
+            severity: 'info',
+            summary: 'Conexión eliminada',
+            detail: 'La conexión ha sido removida del workflow.',
+            life: 2000
+        });
+    }
+
     selectNode(node: EditorNode) {
         if (this.connecting()) {
             this.completeConnection(node);
             return;
         }
         this.nodes.update(nodes =>
-            nodes.map(n => ({ ...n, selected: n.id === node.id })),
+            nodes.map(n => ({ ...n, selected: n.id === node.id }))
         );
-        this.selectedNode.set(node);
+        this.selectedNode.set({ ...node });
     }
 
     deselectAll() {
@@ -227,11 +263,15 @@ export class WorkflowEditorComponent implements OnInit {
         this.selectedNode.set(null);
     }
 
-    // ==================== Connections ====================
+    // ==================== Connections (Graph-Based) ====================
 
-    startConnection(node: EditorNode) {
+    startConnection(event: { node: EditorNode, handle?: string } | EditorNode) {
+        const node = 'node' in event ? event.node : event;
+        const handle = 'handle' in event ? event.handle : null;
+
         this.connecting.set(true);
         this.connectingFromId.set(node.id);
+        this.connectingSourceHandle.set(handle || null);
         this.messageService.add({ severity: 'info', summary: 'Conexión', detail: 'Haz clic en el nodo destino' });
     }
 
@@ -240,31 +280,65 @@ export class WorkflowEditorComponent implements OnInit {
         if (!fromId || fromId === targetNode.id) {
             this.connecting.set(false);
             this.connectingFromId.set(null);
+            this.connectingSourceHandle.set(null);
             return;
         }
 
-        // Asignar parentId al nodo destino
+        // Check for duplicate connection
+        const existing = this.connections().find(
+            c => c.sourceNodeId === fromId && c.targetNodeId === targetNode.id
+        );
+        if (existing) {
+            this.messageService.add({ severity: 'warn', summary: 'Duplicado', detail: 'Esta conexión ya existe' });
+            this.connecting.set(false);
+            this.connectingFromId.set(null);
+            this.connectingSourceHandle.set(null);
+            return;
+        }
+
+        // Create a temp connection
+        const tempConn: WorkflowConnection = {
+            id: 'temp-conn-' + Date.now(),
+            workflowId: this.workflowId,
+            sourceNodeId: fromId,
+            targetNodeId: targetNode.id,
+            sourceHandle: this.connectingSourceHandle(),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+        };
+
+        this.connections.update(conns => [...conns, tempConn]);
+
+        // Also set parentId for backward compatibility
         this.nodes.update(nodes =>
             nodes.map(n => n.id === targetNode.id ? { ...n, parentId: fromId } : n),
         );
 
         this.connecting.set(false);
         this.connectingFromId.set(null);
+        this.connectingSourceHandle.set(null);
         this.messageService.add({ severity: 'success', summary: 'Conectado', detail: 'Nodos conectados correctamente' });
+
+        // Refresh selectedNode
+        if (this.selectedNode()?.id === targetNode.id) {
+            const updated = this.nodes().find(n => n.id === targetNode.id);
+            if (updated) this.selectedNode.set({ ...updated });
+        }
     }
 
     cancelConnection() {
         this.connecting.set(false);
         this.connectingFromId.set(null);
+        this.connectingSourceHandle.set(null);
     }
 
-    removeConnection(node: EditorNode) {
-        this.nodes.update(nodes =>
-            nodes.map(n => n.id === node.id ? { ...n, parentId: null } : n),
+    removeConnectionByNode(node: EditorNode) {
+        // Remove all connections FROM or TO this node
+        const nodeConns = this.connections().filter(
+            c => c.sourceNodeId === node.id || c.targetNodeId === node.id
         );
-        // update selectedNode if it's the disconnected one
-        if (this.selectedNode()?.id === node.id) {
-            this.selectedNode.set({ ...node, parentId: null });
+        for (const conn of nodeConns) {
+            this.removeConnection(conn.id);
         }
     }
 
@@ -274,15 +348,14 @@ export class WorkflowEditorComponent implements OnInit {
         const node = this.selectedNode();
         if (!node) return;
 
-        const schemaCandidate = config['__dataSchema'];
-        let nextConfig = config;
+        let nextConfig = { ...config };
         let nextDataSchema = node.dataSchema;
 
+        const schemaCandidate = config['__dataSchema'];
         if (Object.prototype.hasOwnProperty.call(config, '__dataSchema')) {
-            nextConfig = { ...config };
             delete nextConfig['__dataSchema'];
             nextDataSchema = schemaCandidate && typeof schemaCandidate === 'object'
-                ? schemaCandidate
+                ? { ...schemaCandidate }
                 : null;
         }
 
@@ -290,19 +363,44 @@ export class WorkflowEditorComponent implements OnInit {
             nodes.map(n => n.id === node.id ? { ...n, config: nextConfig, dataSchema: nextDataSchema } : n),
         );
 
-        this.selectedNode.set({ ...node, config: nextConfig, dataSchema: nextDataSchema });
+        const updated = this.nodes().find(n => n.id === node.id);
+        if (updated) {
+            this.selectedNode.set({ ...updated });
+        }
+    }
+
+    updateNodeName(name: string) {
+        const node = this.selectedNode();
+        if (!node) return;
+
+        // Validate uniqueness
+        const duplicate = this.nodes().find(n => n.name === name && n.id !== node.id);
+        if (duplicate) {
+            this.messageService.add({ severity: 'warn', summary: 'Nombre duplicado', detail: `Ya existe un nodo llamado "${name}"` });
+            return;
+        }
+
+        this.nodes.update(nodes =>
+            nodes.map(n => n.id === node.id ? { ...n, name } : n),
+        );
+        const updated = this.nodes().find(n => n.id === node.id);
+        if (updated) {
+            this.selectedNode.set({ ...updated });
+        }
     }
 
     // ==================== Delete Node ====================
 
     deleteNode(node: EditorNode) {
+        // Remove all connections to/from this node
+        this.removeConnectionByNode(node);
+
         this.nodes.update(nodes =>
             nodes.filter(n => n.id !== node.id).map(n =>
                 n.parentId === node.id ? { ...n, parentId: null } : n
             ),
         );
 
-        // Si el nodo ya existe en backend, guardar para eliminar
         if (!node.id.startsWith('temp-')) {
             this.deletedNodeIds.push(node.id);
         }
@@ -318,32 +416,37 @@ export class WorkflowEditorComponent implements OnInit {
         this.saving.set(true);
 
         try {
-            // 1. Eliminar nodos borrados del backend
+            // 1. Eliminar nodos borrados
             for (const id of this.deletedNodeIds) {
                 await this.workflowService.deleteNode(id).toPromise();
             }
             this.deletedNodeIds = [];
 
-            // 2. Crear nodos nuevos (sin parentId primero para obtener IDs reales)
+            // 2. Eliminar conexiones borradas
+            for (const id of this.deletedConnectionIds) {
+                await this.workflowService.deleteConnection(id).toPromise();
+            }
+            this.deletedConnectionIds = [];
+
+            // 3. Crear nodos nuevos
             const currentNodes = this.nodes();
             const tempToRealId = new Map<string, string>();
 
-            // Pass 1: Crear nodos nuevos sin parent
             for (const node of currentNodes) {
                 if (node.id.startsWith('temp-')) {
                     const dto: CreateWorkflowNodeDto = {
                         type: node.type,
+                        name: node.name,
                         config: node.config,
                         dataSchema: node.dataSchema,
                         x: node.x,
                         y: node.y,
                         workflowId: this.workflowId,
-                        parentId: null, // se asigna en pass 2
+                        parentId: null,
                     };
                     const created = await this.workflowService.createNode(dto).toPromise();
                     if (created) {
                         tempToRealId.set(node.id, created.id);
-                        // Update local ID immediately to avoid duplicate creation on retry if a later step fails
                         this.nodes.update(nodes => nodes.map(n => n.id === node.id ? { ...n, id: created.id } : n));
                         if (this.selectedNode()?.id === node.id) {
                             this.selectedNode.set({ ...node, id: created.id });
@@ -352,7 +455,7 @@ export class WorkflowEditorComponent implements OnInit {
                 }
             }
 
-            // Pass 2: Actualizar todos los nodos (posiciones, config, parentId)
+            // 4. Actualizar todos los nodos
             for (const node of currentNodes) {
                 const realId = tempToRealId.get(node.id) || node.id;
                 let parentId = node.parentId;
@@ -362,6 +465,7 @@ export class WorkflowEditorComponent implements OnInit {
 
                 await this.workflowService.updateNode(realId, {
                     type: node.type,
+                    name: node.name,
                     config: node.config,
                     dataSchema: node.dataSchema,
                     x: node.x,
@@ -370,8 +474,25 @@ export class WorkflowEditorComponent implements OnInit {
                 }).toPromise();
             }
 
-            // Reload nodes from backend
+            // 5. Guardar conexiones nuevas
+            for (const conn of this.connections()) {
+                if (conn.id.startsWith('temp-')) {
+                    const sourceNodeId = tempToRealId.get(conn.sourceNodeId) || conn.sourceNodeId;
+                    const targetNodeId = tempToRealId.get(conn.targetNodeId) || conn.targetNodeId;
+
+                    await this.workflowService.createConnection({
+                        workflowId: this.workflowId,
+                        sourceNodeId,
+                        targetNodeId,
+                        sourceHandle: conn.sourceHandle,
+                        targetHandle: conn.targetHandle,
+                    }).toPromise();
+                }
+            }
+
+            // 6. Recargar todo
             this.loadNodes();
+            this.loadConnections();
             this.messageService.add({ severity: 'success', summary: 'Guardado', detail: 'Workflow guardado correctamente' });
         } catch (err: any) {
             console.error('Error saving workflow:', err);
@@ -390,7 +511,6 @@ export class WorkflowEditorComponent implements OnInit {
             this.messageService.add({ severity: 'warn', summary: 'Atención', detail: 'No hay nodos para simular' });
             return;
         }
-
         this.simulating.set(true);
         this.simulationIndex.set(0);
         this.highlightNode(0);
@@ -404,13 +524,9 @@ export class WorkflowEditorComponent implements OnInit {
             this.messageService.add({ severity: 'success', summary: 'Simulación', detail: 'Simulación completada' });
             return;
         }
-
         const currentId = order[index].id;
-        this.nodes.update(nodes =>
-            nodes.map(n => ({ ...n, active: n.id === currentId })),
-        );
+        this.nodes.update(nodes => nodes.map(n => ({ ...n, active: n.id === currentId })));
         this.simulationIndex.set(index);
-
         setTimeout(() => this.highlightNode(index + 1), 1200);
     }
 
@@ -419,15 +535,45 @@ export class WorkflowEditorComponent implements OnInit {
         this.nodes.update(nodes => nodes.map(n => ({ ...n, active: false })));
     }
 
-    async realExecute() {
+    realExecuteDirect() {
         if (!this.workflowId) return;
+
         this.executing.set(true);
         this.workflowService.executeWorkflow(this.workflowId, {}).subscribe({
+            next: () => {
+                this.messageService.add({ severity: 'success', summary: 'Ejecución', detail: 'Evento enviado (Directo)' });
+                this.executing.set(false);
+            },
+            error: () => {
+                this.messageService.add({ severity: 'error', summary: 'Error', detail: 'No se pudo iniciar la ejecución' });
+                this.executing.set(false);
+            }
+        });
+    }
+
+    realExecuteWithParams() {
+        this.showExecutionDialog.set(true);
+    }
+
+    async confirmExecute() {
+        if (!this.workflowId) return;
+
+        let payload = {};
+        try {
+            payload = JSON.parse(this.executionPayload());
+        } catch (e) {
+            this.messageService.add({ severity: 'error', summary: 'Error', detail: 'JSON inválido' });
+            return;
+        }
+
+        this.showExecutionDialog.set(false);
+        this.executing.set(true);
+        this.workflowService.executeWorkflow(this.workflowId, payload).subscribe({
             next: () => {
                 this.messageService.add({ severity: 'success', summary: 'Ejecución', detail: 'Evento enviado a Inngest correctamente' });
                 this.executing.set(false);
             },
-            error: (err) => {
+            error: () => {
                 this.messageService.add({ severity: 'error', summary: 'Error', detail: 'No se pudo iniciar la ejecución' });
                 this.executing.set(false);
             }
@@ -435,6 +581,81 @@ export class WorkflowEditorComponent implements OnInit {
     }
 
     // ==================== Helpers ====================
+
+    /** Topological sort for connections (Kahn's algorithm) */
+    private topologicalSort(nodes: EditorNode[], connections: WorkflowConnection[]): EditorNode[] {
+        const nodeMap = new Map<string, EditorNode>();
+        const inDegree = new Map<string, number>();
+        const adjacency = new Map<string, string[]>();
+
+        for (const node of nodes) {
+            nodeMap.set(node.id, node);
+            inDegree.set(node.id, 0);
+            adjacency.set(node.id, []);
+        }
+
+        for (const conn of connections) {
+            const targets = adjacency.get(conn.sourceNodeId) || [];
+            targets.push(conn.targetNodeId);
+            adjacency.set(conn.sourceNodeId, targets);
+            inDegree.set(conn.targetNodeId, (inDegree.get(conn.targetNodeId) || 0) + 1);
+        }
+
+        const queue: string[] = [];
+        for (const [id, degree] of inDegree) {
+            if (degree === 0) queue.push(id);
+        }
+
+        const sorted: EditorNode[] = [];
+        while (queue.length > 0) {
+            const currentId = queue.shift()!;
+            const currentNode = nodeMap.get(currentId);
+            if (currentNode) sorted.push(currentNode);
+
+            for (const targetId of adjacency.get(currentId) || []) {
+                const newDegree = (inDegree.get(targetId) || 1) - 1;
+                inDegree.set(targetId, newDegree);
+                if (newDegree === 0) queue.push(targetId);
+            }
+        }
+
+        return sorted;
+    }
+
+    /** Calculate ancestors from the graph using connections */
+    calculateAncestorsFromGraph(nodeId: string, visited: Set<string> = new Set()): EditorNode[] {
+        if (visited.has(nodeId)) return [];
+        visited.add(nodeId);
+
+        const conns = this.connections();
+        const allNodes = this.nodes();
+        const ancestors: EditorNode[] = [];
+
+        // Find all nodes that connect INTO this node
+        const incoming = conns.filter(c => c.targetNodeId === nodeId);
+        for (const conn of incoming) {
+            const sourceNode = allNodes.find(n => n.id === conn.sourceNodeId);
+            if (sourceNode) {
+                // Recursively get ancestors of the source node first
+                const deeper = this.calculateAncestorsFromGraph(sourceNode.id, visited);
+                ancestors.push(...deeper, sourceNode);
+            }
+        }
+
+        // Fallback to parentId when no connections
+        if (incoming.length === 0) {
+            const node = allNodes.find(n => n.id === nodeId);
+            if (node?.parentId) {
+                const parent = allNodes.find(n => n.id === node.parentId);
+                if (parent) {
+                    const deeper = this.calculateAncestorsFromGraph(parent.id, visited);
+                    ancestors.push(...deeper, parent);
+                }
+            }
+        }
+
+        return ancestors;
+    }
 
     goBack() {
         this.router.navigate(['/workflows']);

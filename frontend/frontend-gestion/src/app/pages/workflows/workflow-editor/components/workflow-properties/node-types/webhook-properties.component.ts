@@ -62,7 +62,7 @@ export class WebhookPropertiesComponent implements OnChanges, OnDestroy {
     ngOnChanges(changes: SimpleChanges) {
         if (changes['node'] && this.node) {
             this.webhookUrl.set(this.buildWebhookUrl(this.node.workflowId));
-            const schemaBody = this.node.dataSchema?.['body'] || {};
+            const schemaBody = (this.node.dataSchema as any)?.['body'] || {};
             this.expectedBodyText.set(JSON.stringify(schemaBody, null, 2));
             this.expectedBodyValid.set(true);
         }

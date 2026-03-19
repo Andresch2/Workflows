@@ -1,14 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { NodeHandler, WorkflowContext } from '../types';
+import { NodeHandler, NodeResult, WorkflowContext } from '../types';
 import { TemplateUtil } from '../utils/template.util';
 
 @Injectable()
 export class HttpHandler implements NodeHandler {
   private readonly logger = new Logger(HttpHandler.name);
 
-  constructor(private readonly templateUtil: TemplateUtil) {}
+  constructor(private readonly templateUtil: TemplateUtil) { }
 
-  async execute(node: any, context: WorkflowContext, _step: any): Promise<any> {
+  async execute(node: any, context: WorkflowContext, _step: any): Promise<NodeResult> {
     const config = this.templateUtil.process(node.config || {}, context);
 
     const url = config.url;
@@ -21,7 +21,14 @@ export class HttpHandler implements NodeHandler {
 
     if (!url) {
       this.logger.warn(`HttpHandler: nodo ${node.id} sin URL configurada`);
-      return { status: 'skipped', reason: 'No URL' };
+      return {
+        status: 'skipped',
+        nodeId: node.id,
+        nodeName: node.name || node.type,
+        type: node.type,
+        data: null,
+        error: 'No URL configured',
+      };
     }
 
     this.logger.log(`HttpHandler: ${method} ${url}`);
@@ -45,10 +52,25 @@ export class HttpHandler implements NodeHandler {
       } catch {
         data = text;
       }
-      return { status: 'success', statusCode: response.status, data };
+
+      return {
+        status: 'success',
+        nodeId: node.id,
+        nodeName: node.name || node.type,
+        type: node.type,
+        data: { statusCode: response.status, body: data, headers: Object.fromEntries(response.headers.entries()) },
+        meta: { method, url },
+      };
     } catch (error: any) {
       this.logger.error(`HttpHandler error: ${error.message}`);
-      return { status: 'failed', error: error.message };
+      return {
+        status: 'failed',
+        nodeId: node.id,
+        nodeName: node.name || node.type,
+        type: node.type,
+        data: null,
+        error: error.message,
+      };
     }
   }
 

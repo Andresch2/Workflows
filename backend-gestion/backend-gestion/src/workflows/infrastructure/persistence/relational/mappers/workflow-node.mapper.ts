@@ -5,6 +5,7 @@ export class WorkflowNodeMapper {
   static toDomain(entity: WorkflowNodeEntity): WorkflowNode {
     const domain = new WorkflowNode();
     domain.id = entity.id;
+    domain.name = entity.name;
     domain.type = entity.type;
     domain.config = entity.config;
     domain.dataSchema = entity.dataSchema;
@@ -22,6 +23,7 @@ export class WorkflowNodeMapper {
   ): Partial<WorkflowNodeEntity> {
     const entity: Partial<WorkflowNodeEntity> = {};
     if (domain.type !== undefined) entity.type = domain.type;
+    if (domain.name !== undefined) entity.name = domain.name;
     if (domain.config !== undefined) entity.config = domain.config;
     if (domain.dataSchema !== undefined) entity.dataSchema = domain.dataSchema;
     if (domain.x !== undefined) entity.x = domain.x;

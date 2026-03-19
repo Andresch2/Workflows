@@ -12,8 +12,8 @@
         }
         @if (!simulating) {
         <p-button label="Simular" icon="pi pi-play" severity="secondary" (onClick)="startSimulation.emit()" />
-        <p-button label="Ejecutar Real" icon="pi pi-bolt" severity="warn" (onClick)="realExecute.emit()"
-            [loading]="executing" />
+        <p-splitButton label="Ejecutar" icon="pi pi-bolt" severity="warn" (onClick)="realExecute.emit()"
+            [model]="executionItems" [disabled]="executing" pTooltip="Ejecución directa" />
         } @else {
         <p-button label="Detener" icon="pi pi-stop" severity="danger" (onClick)="stopSimulation.emit()" />
         }

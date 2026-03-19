@@ -21,7 +21,7 @@ export class WebhookController {
   private readonly logger = new Logger(WebhookController.name);
   private static payloadCache = new Map<string, any>();
 
-  constructor(private readonly workflowsService: WorkflowsService) {}
+  constructor(private readonly workflowsService: WorkflowsService) { }
 
   @Post(':workflowId')
   @ApiParam({ name: 'workflowId', type: String })
@@ -39,23 +39,31 @@ export class WebhookController {
       return { status: 'error', message: `Workflow ${workflowId} no encontrado` };
     }
 
-    await inngest.send({
-      name: 'webhook.received',
-      data: {
-        workflowId,
-        payload: payload || {},
-        headers: headers || {},
-        query: query || {},
-      },
-    });
-
+    // Cachear el payload SIEMPRE
     WebhookController.payloadCache.set(workflowId, {
       body: payload || {},
       headers: headers || {},
       query: query || {},
     });
 
-    this.logger.log(`Evento webhook.received enviado a Inngest para workflow ${workflowId}`);
+    // Intentar enviar a Inngest, pero no bloquear si falla
+    try {
+      await inngest.send({
+        name: 'webhook.received',
+        data: {
+          workflowId,
+          payload: payload || {},
+          headers: headers || {},
+          query: query || {},
+        },
+      });
+      this.logger.log(`Evento webhook.received enviado a Inngest para workflow ${workflowId}`);
+    } catch (e) {
+      this.logger.warn(
+        `No se pudo enviar evento a Inngest (¿event key no configurada?): ${(e as any)?.message}`,
+      );
+    }
+
     return { status: 'received', workflowId };
   }
 

@@ -12,10 +12,15 @@ export class UpdateWorkflowDto {
   @IsOptional()
   description?: string | null;
 
-  @ApiPropertyOptional({ enum: ['webhook', 'http'] })
-  @IsEnum(['webhook', 'http'], {
-    message: 'triggerType debe ser webhook o http',
+  @ApiPropertyOptional({ enum: ['webhook', 'http', 'event'] })
+  @IsEnum(['webhook', 'http', 'event'], {
+    message: 'triggerType debe ser webhook, http o event',
   })
   @IsOptional()
-  triggerType?: 'webhook' | 'http';
+  triggerType?: 'webhook' | 'http' | 'event';
+
+  @ApiPropertyOptional({ example: 'task.created' })
+  @IsString()
+  @IsOptional()
+  eventName?: string | null;
 }

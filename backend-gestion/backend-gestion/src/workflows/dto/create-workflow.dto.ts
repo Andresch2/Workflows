@@ -18,12 +18,17 @@ export class CreateWorkflowDto {
   @IsOptional()
   description?: string | null;
 
-  @ApiProperty({ enum: ['webhook', 'http'], example: 'webhook' })
-  @IsEnum(['webhook', 'http'], {
-    message: 'triggerType debe ser webhook o http',
+  @ApiProperty({ enum: ['webhook', 'http', 'event'], example: 'webhook' })
+  @IsEnum(['webhook', 'http', 'event'], {
+    message: 'triggerType debe ser webhook, http o event',
   })
   @IsNotEmpty()
-  triggerType: 'webhook' | 'http';
+  triggerType: 'webhook' | 'http' | 'event';
+
+  @ApiProperty({ example: 'task.created', required: false })
+  @IsString()
+  @IsOptional()
+  eventName?: string | null;
 
   @ApiProperty({ example: 'uuid-del-proyecto', required: false })
   @IsUUID()

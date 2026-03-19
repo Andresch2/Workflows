@@ -31,6 +31,11 @@ import { WorkflowService } from '../../../../../../core/services/workflow.servic
                 class="w-full" placeholder="https://api.example.com/resource" />
         </div>
 
+        <div style="font-size: 0.72rem; color: #94a3b8; margin-bottom: 0.5rem; padding: 0.4rem 0.6rem; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 6px;">
+            <i class="pi pi-info-circle" style="color: #38bdf8; margin-right: 0.25rem;"></i>
+            Use variables del Data Explorer: <code style="background: #e0f2fe; color: #0369a1; padding: 0.1rem 0.3rem; border-radius: 3px; font-weight: 600;">$json.campo</code>
+        </div>
+
         <div style="display:flex; gap:.5rem; margin-bottom:.75rem;">
             <button pButton type="button" [severity]="activeTab() === 'headers' ? 'primary' : 'secondary'" size="small"
                 label="Headers" (click)="activeTab.set('headers')"></button>

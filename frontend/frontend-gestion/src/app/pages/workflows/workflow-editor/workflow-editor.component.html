@@ -4,8 +4,8 @@
     <!-- Toolbar -->
     <app-workflow-toolbar [workflow]="workflow()" [connecting]="connecting()" [simulating]="simulating()"
         [executing]="executing()" [saving]="saving()" (goBack)="goBack()" (cancelConnection)="cancelConnection()"
-        (startSimulation)="startSimulation()" (stopSimulation)="stopSimulation()" (realExecute)="realExecute()"
-        (saveAll)="saveAll()">
+        (startSimulation)="startSimulation()" (stopSimulation)="stopSimulation()" (realExecute)="realExecuteDirect()"
+        (executeWithParams)="realExecuteWithParams()" (saveAll)="saveAll()">
     </app-workflow-toolbar>
 
     <div class="editor-body">
@@ -14,10 +14,11 @@
 
         <!-- Canvas SVG -->
         <app-workflow-canvas style="flex: 1; display: flex; overflow: hidden;" [nodes]="nodes()"
-            [connecting]="connecting()" [connectingFromId]="connectingFromId()" [selectedNodeId]="selectedNode()?.id"
-            (canvasDragOver)="onCanvasDragOver($event)" (canvasDrop)="onCanvasDrop($event)"
-            (nodeSelected)="selectNode($event)" (canvasClicked)="deselectAll()"
-            (connectionStarted)="startConnection($event)" (nodeMoved)="updateNodePosition($event)">
+            [connections]="connections()" [connecting]="connecting()" [connectingFromId]="connectingFromId()"
+            [selectedNodeId]="selectedNode()?.id" (canvasDragOver)="onCanvasDragOver($event)"
+            (canvasDrop)="onCanvasDrop($event)" (nodeSelected)="selectNode($event)" (canvasClicked)="deselectAll()"
+            (connectionStarted)="startConnection($event)" (nodeMoved)="updateNodePosition($event)"
+            (connectionRemoved)="removeConnection($event)">
         </app-workflow-canvas>
 
         <!-- Config Panel -->
@@ -25,8 +26,45 @@
         <app-workflow-properties [node]="selectedNode()!" [parentNode]="parentNode()"
             [availableAncestors]="availableAncestors()" (configChange)="updateNodeConfig($event)"
             (connectNode)="startConnection($event)" (deleteNode)="deleteNode($event)"
-            (disconnectNode)="removeConnection($event)">
+            (disconnectNode)="removeConnectionByNode($event)" (nameChange)="updateNodeName($event)">
         </app-workflow-properties>
         }
     </div>
 </div>
+
+<!-- Diálogo para Ejecución Real -->
+<p-dialog header="Configurar Datos de Prueba" [(visible)]="showExecutionDialog" [modal]="true"
+    [style]="{width: '500px'}" [draggable]="false" [resizable]="false">
+    <div class="p-fluid">
+        <div class="field">
+            <label for="payload" class="block mb-2 font-medium">Carga Útil (JSON)</label>
+            <textarea id="payload" pTextarea [rows]="8" [ngModel]="executionPayload()"
+                (ngModelChange)="executionPayload.set($event)" class="w-full font-mono"
+                placeholder='{"key": "value"}'></textarea>
+            <small class="block mt-2 text-gray-500">Este JSON se enviará como cuerpo de la petición al workflow.</small>
+        </div>
+    </div>
+    <ng-template pTemplate="footer">
+        <p-button label="Cancelar" icon="pi pi-times" [text]="true" (onClick)="showExecutionDialog.set(false)" />
+        <p-button label="Confirmar Ejecución" icon="pi pi-bolt" severity="warn" (onClick)="confirmExecute()"
+            [loading]="executing()" />
+    </ng-template>
+</p-dialog>
+
+<p-dialog header="Configurar Datos de Prueba" [(visible)]="showExecutionDialog" [modal]="true"
+    [style]="{width: '500px'}" [draggable]="false" [resizable]="false">
+    <div class="p-fluid">
+        <div class="field">
+            <label for="payload" class="block mb-2 font-medium">Carga Útil (JSON)</label>
+            <textarea id="payload" pTextarea [rows]="8" [ngModel]="executionPayload()"
+                (ngModelChange)="executionPayload.set($event)" class="w-full font-mono"
+                placeholder='{"key": "value"}'></textarea>
+            <small class="block mt-2 text-gray-500">Este JSON se enviará como cuerpo de la petición al workflow.</small>
+        </div>
+    </div>
+    <ng-template pTemplate="footer">
+        <p-button label="Cancelar" icon="pi pi-times" [text]="true" (onClick)="showExecutionDialog.set(false)" />
+        <p-button label="Confirmar Ejecución" icon="pi pi-bolt" severity="warn" (onClick)="confirmExecute()"
+            [loading]="executing()" />
+    </ng-template>
+</p-dialog>

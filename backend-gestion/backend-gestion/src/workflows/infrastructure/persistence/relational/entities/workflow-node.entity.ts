@@ -17,6 +17,9 @@ export class WorkflowNodeEntity extends EntityRelationalHelper {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Column({ type: 'varchar', nullable: true })
+  name?: string | null;
+
   @Column({
     type: 'enum',
     enum: WorkflowNodeType,

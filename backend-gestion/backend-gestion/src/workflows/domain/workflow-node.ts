@@ -6,6 +6,13 @@ export class WorkflowNode {
   id: string;
 
   @ApiProperty({
+    type: String,
+    nullable: true,
+    description: 'Nombre humano legible del nodo, único dentro del workflow',
+  })
+  name?: string | null;
+
+  @ApiProperty({
     enum: WorkflowNodeType,
     description: 'Tipo de nodo del workflow',
   })

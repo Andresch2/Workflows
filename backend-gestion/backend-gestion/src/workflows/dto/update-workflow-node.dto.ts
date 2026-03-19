@@ -4,6 +4,7 @@ import {
   IsNumber,
   IsObject,
   IsOptional,
+  IsString,
   IsUUID,
   ValidateIf,
 } from 'class-validator';
@@ -14,6 +15,11 @@ export class UpdateWorkflowNodeDto {
   @IsEnum(WorkflowNodeType)
   @IsOptional()
   type?: WorkflowNodeType;
+
+  @ApiPropertyOptional({ type: String })
+  @IsString()
+  @IsOptional()
+  name?: string | null;
 
   @ApiPropertyOptional({ type: Object })
   @IsObject()

@@ -72,7 +72,12 @@ import { WorkflowService } from '../../../core/services/workflow.service';
                     <td>{{ wf.title }}</td>
                     <td>{{ wf.description || '—' }}</td>
                     <td>
-                        <p-tag [value]="wf.triggerType" [severity]="wf.triggerType === 'webhook' ? 'info' : 'success'" />
+                        <p-tag [value]="wf.triggerType" [severity]="wf.triggerType === 'webhook' ? 'info' : wf.triggerType === 'event' ? 'warn' : 'success'" />
+                        @if (wf.triggerType === 'event' && wf.eventName) {
+                            <div style="font-size: 0.75rem; margin-top: 0.25rem; color: #6b7280;">
+                                <i class="pi pi-bolt" style="font-size: 0.7rem;"></i> {{ wf.eventName }}
+                            </div>
+                        }
                     </td>
                     <td>{{ wf.createdAt | date:'medium' }}</td>
                     <td>
@@ -143,6 +148,12 @@ import { WorkflowService } from '../../../core/services/workflow.service';
                     appendTo="body"
                 />
             </div>
+            @if (formData.triggerType === 'event') {
+                <div class="flex flex-col gap-2">
+                    <label for="wf-eventname"><strong>Nombre del Evento (Ej: task.created)</strong></label>
+                    <input pInputText id="wf-eventname" [(ngModel)]="formData.eventName" placeholder="project.updated, task.completed..." class="w-full" />
+                </div>
+            }
         </div>
 
         <ng-template #footer>
@@ -164,11 +175,13 @@ export class WorkflowListComponent implements OnInit {
         title: '',
         description: '',
         triggerType: 'webhook',
+        eventName: '',
     };
 
     triggerOptions = [
-        { label: 'Webhook', value: 'webhook' },
-        { label: 'HTTP', value: 'http' },
+        { label: 'Webhook (URL Externa)', value: 'webhook' },
+        { label: 'Petición HTTP Directa', value: 'http' },
+        { label: 'Evento Interno Automático', value: 'event' },
     ];
 
     constructor(
@@ -198,7 +211,7 @@ export class WorkflowListComponent implements OnInit {
     showDialog() {
         this.editingId = null;
         this.isEditing.set(false);
-        this.formData = { title: '', description: '', triggerType: 'webhook' };
+        this.formData = { title: '', description: '', triggerType: 'webhook', eventName: '' };
         this.dialogVisible = true;
     }
 
@@ -209,6 +222,7 @@ export class WorkflowListComponent implements OnInit {
             title: wf.title,
             description: wf.description || '',
             triggerType: wf.triggerType,
+            eventName: wf.eventName || '',
         };
         this.dialogVisible = true;
     }

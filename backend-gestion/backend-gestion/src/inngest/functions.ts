@@ -7,12 +7,6 @@ interface InngestDeps {
   workflowEngineService: WorkflowEngineService;
 }
 
-/**
- * Funciones:
- *   1. workflow/execute — Ejecuta un workflow por ID
- *   2. webhook.received — Disparado cuando se recibe un webhook
- *   3. http.triggered   — Disparado para workflows de tipo HTTP
- */
 export function getInngestFunctions(deps: InngestDeps) {
   const { workflowsService, workflowEngineService } = deps;
 
@@ -38,7 +32,7 @@ export function getInngestFunctions(deps: InngestDeps) {
     },
   );
 
-  // 2. Webhook recibido → ejecuta workflow
+  // 2. Webhook recibido y ejecuta workflow
   const onWebhookReceived = inngest.createFunction(
     { id: 'on-webhook-received' },
     { event: 'webhook.received' },
@@ -58,7 +52,7 @@ export function getInngestFunctions(deps: InngestDeps) {
     },
   );
 
-  // 3. HTTP trigger → busca workflows de tipo HTTP y los ejecuta
+  // 3. HTTP trigger busca workflows de tipo HTTP y los ejecuta
   const onHttpTriggered = inngest.createFunction(
     { id: 'on-http-triggered' },
     { event: 'http.triggered' },
@@ -69,7 +63,6 @@ export function getInngestFunctions(deps: InngestDeps) {
         return workflowEngineService.executeWorkflow(workflowId, step, payload);
       }
 
-      // Buscar workflows con triggerType 'http'
       const workflows = await step.run('find-http-workflows', async () => {
         return workflowsService.findByTriggerType('http');
       });
@@ -92,23 +85,81 @@ export function getInngestFunctions(deps: InngestDeps) {
     },
   );
 
-  // 4. Task creado automáticamente (Demostración de auto-trigger)
+  // Ejecutar todos los workflows de un evento de dominio
+  async function executeEventWorkflows(
+    eventName: string,
+    eventData: Record<string, any>,
+    step: any,
+  ) {
+    const workflows = await step.run(`find-${eventName}-workflows`, async () => {
+      return workflowsService.findByEventName(eventName);
+    });
+
+    if (!workflows.length) {
+      return { status: 'no_workflows', eventName, message: 'No workflows configured for this event' };
+    }
+
+    const results: any[] = [];
+    for (const wf of workflows) {
+      const result = await workflowEngineService.executeWorkflow(
+        wf.id,
+        step,
+        { ...eventData, $json: eventData },
+      );
+      results.push({ workflowId: wf.id, result });
+    }
+
+    return {
+      status: 'completed',
+      eventName,
+      workflowsExecuted: results.length,
+      results,
+    };
+  }
+
+  // 4. Task creado ejecuta workflows con eventName='task.created'
   const onTaskCreated = inngest.createFunction(
     { id: 'on-task-created' },
     { event: 'task.created' },
     async ({ event, step }) => {
-      const { taskId, title } = event.data;
-
-      await step.run('log-task-info', async () => {
-        console.log(
-          `¡Inngest detectó una nueva tarea automáticamente!: ${title} (ID: ${taskId})`,
-        );
-        return { message: 'Auto-trigger detectado correctamente' };
-      });
-
-      return { processed: true, taskId };
+      return executeEventWorkflows('task.created', event.data, step);
     },
   );
 
-  return [executeWorkflow, onWebhookReceived, onHttpTriggered, onTaskCreated];
+  // 5. Task completado ejecuta workflows con eventName='task.completed'
+  const onTaskCompleted = inngest.createFunction(
+    { id: 'on-task-completed' },
+    { event: 'task.completed' },
+    async ({ event, step }) => {
+      return executeEventWorkflows('task.completed', event.data, step);
+    },
+  );
+
+  // 6. Proyecto creado ejecuta workflows con eventName='project.created'
+  const onProjectCreated = inngest.createFunction(
+    { id: 'on-project-created' },
+    { event: 'project.created' },
+    async ({ event, step }) => {
+      return executeEventWorkflows('project.created', event.data, step);
+    },
+  );
+
+  // 7. Proyecto actualizado ejecuta workflows con eventName='project.updated'
+  const onProjectUpdated = inngest.createFunction(
+    { id: 'on-project-updated' },
+    { event: 'project.updated' },
+    async ({ event, step }) => {
+      return executeEventWorkflows('project.updated', event.data, step);
+    },
+  );
+
+  return [
+    executeWorkflow,
+    onWebhookReceived,
+    onHttpTriggered,
+    onTaskCreated,
+    onTaskCompleted,
+    onProjectCreated,
+    onProjectUpdated,
+  ];
 }

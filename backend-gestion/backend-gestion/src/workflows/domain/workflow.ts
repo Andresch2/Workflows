@@ -14,10 +14,18 @@ export class Workflow {
 
   @ApiProperty({
     type: String,
-    enum: ['webhook', 'http'],
+    enum: ['webhook', 'http', 'event'],
     description: 'Tipo de trigger del workflow',
   })
-  triggerType: 'webhook' | 'http';
+  triggerType: 'webhook' | 'http' | 'event';
+
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description:
+      'Nombre del evento que dispara el workflow (solo para triggerType=event)',
+  })
+  eventName?: string | null;
 
   @ApiProperty({ type: () => User })
   user?: User | null;

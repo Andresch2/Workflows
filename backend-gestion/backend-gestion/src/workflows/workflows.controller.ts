@@ -25,7 +25,9 @@ import {
 } from '../utils/dto/infinity-pagination-response.dto';
 import { infinityPagination } from '../utils/infinity-pagination';
 import { Workflow } from './domain/workflow';
+import { WorkflowConnection } from './domain/workflow-connection';
 import { WorkflowNode } from './domain/workflow-node';
+import { CreateWorkflowConnectionDto } from './dto/create-workflow-connection.dto';
 import { CreateWorkflowNodeDto } from './dto/create-workflow-node.dto';
 import { CreateWorkflowDto } from './dto/create-workflow.dto';
 import { FindAllWorkflowsDto } from './dto/find-all-workflows.dto';
@@ -46,6 +48,14 @@ export class WorkflowsController {
     private readonly workflowsService: WorkflowsService,
     private readonly databaseHandler: DatabaseHandler,
   ) { }
+
+  // ==================== Configuration Endpoints ====================
+
+  @Get('database/configs')
+  @ApiOkResponse({ description: 'Devuelve la configuración dinámica de tablas para nodos Database' })
+  getDatabaseConfigs() {
+    return this.workflowsService.getDatabaseConfigs();
+  }
 
   // ==================== Workflow Endpoints ====================
 
@@ -98,16 +108,21 @@ export class WorkflowsController {
   @Post(':id/execute')
   @ApiParam({ name: 'id', type: String })
   async execute(@Param('id') id: string, @Body() payload: Record<string, any>) {
-    console.log(`Intentando ejecutar workflow: ${id}`);
     try {
       await inngest.send({
         name: 'workflow/execute',
         data: { workflowId: id, ...payload },
       });
-      console.log('Evento enviado exitosamente a Inngest');
       return { message: 'Workflow execution initiated', workflowId: id };
-    } catch (error) {
-      console.error('Error enviando evento a Inngest:', error);
+    } catch (error: any) {
+      const msg = error?.message || 'Unknown error';
+      if (msg.includes('Event key not found') || msg.includes('401')) {
+        return {
+          status: 'warning',
+          message: 'Inngest event key no configurada. Configura INNGEST_EVENT_KEY en .env para ejecución durable.',
+          workflowId: id,
+        };
+      }
       throw error;
     }
   }
@@ -145,6 +160,32 @@ export class WorkflowsController {
   @ApiParam({ name: 'id', type: String })
   removeNode(@Param('id') id: string) {
     return this.workflowsService.removeNode(id);
+  }
+
+  // ==================== WorkflowConnection Endpoints ====================
+
+  @Post(':workflowId/connections')
+  @ApiParam({ name: 'workflowId', type: String })
+  @ApiCreatedResponse({ type: WorkflowConnection })
+  createConnection(
+    @Param('workflowId') workflowId: string,
+    @Body() dto: CreateWorkflowConnectionDto,
+  ) {
+    dto.workflowId = workflowId;
+    return this.workflowsService.createConnection(dto);
+  }
+
+  @Get(':workflowId/connections')
+  @ApiParam({ name: 'workflowId', type: String })
+  @ApiOkResponse({ type: [WorkflowConnection] })
+  findConnectionsByWorkflowId(@Param('workflowId') workflowId: string) {
+    return this.workflowsService.findConnectionsByWorkflowId(workflowId);
+  }
+
+  @Delete('connections/:id')
+  @ApiParam({ name: 'id', type: String })
+  removeConnection(@Param('id') id: string) {
+    return this.workflowsService.removeConnection(id);
   }
 
   // ==================== Test Endpoints ====================
@@ -187,13 +228,15 @@ export class WorkflowsController {
   ) {
     const fakeNode = {
       id: 'test-node',
+      name: dto.nombre || 'test',
+      type: 'DATABASE',
       config: {
         nombre: dto.nombre,
         json: dto.json,
         data: dto.data,
       },
     };
-    const fakeContext = { workflowId: 'test' };
+    const fakeContext = { workflowId: 'test', nodes: {}, $node: {} };
     return this.databaseHandler.execute(fakeNode, fakeContext, null);
   }
 
@@ -204,7 +247,6 @@ export class WorkflowsController {
     try {
       const { url, recipient, message } = dto;
 
-      // Si hay URL configurada, enviar como POST
       if (url) {
         const response = await fetch(url, {
           method: 'POST',
@@ -234,13 +276,12 @@ export class WorkflowsController {
         };
       }
 
-      // Sin URL: solo simular
       return {
         status: 'simulated',
         recipient,
         message,
         timestamp: new Date().toISOString(),
-        note: 'No hay URL configurada. Configura una URL de webhook (Slack, Discord, etc.) para enviar notificaciones reales.',
+        note: 'No hay URL configurada.',
       };
     } catch (error: any) {
       return { status: 'failed', error: error.message };

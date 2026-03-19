@@ -19,6 +19,7 @@ const TOOLBOX_DESCRIPTIONS: Record<WorkflowNodeType, string> = {
     [WorkflowNodeType.NOTIFICATION]: 'Enviar mensaje',
     [WorkflowNodeType.DELAY]: 'Esperar tiempo',
     [WorkflowNodeType.FORM]: 'Pedir información',
+    [WorkflowNodeType.IF]: 'Condicion IF/ELSE',
 };
 
 @Component({

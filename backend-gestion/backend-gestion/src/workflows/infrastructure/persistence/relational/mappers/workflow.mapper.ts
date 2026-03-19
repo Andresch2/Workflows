@@ -8,6 +8,7 @@ export class WorkflowMapper {
     domain.title = entity.title;
     domain.description = entity.description;
     domain.triggerType = entity.triggerType;
+    domain.eventName = entity.eventName;
     domain.createdAt = entity.createdAt;
     domain.updatedAt = entity.updatedAt;
 
@@ -37,6 +38,8 @@ export class WorkflowMapper {
       entity.description = domain.description;
     if (domain.triggerType !== undefined)
       entity.triggerType = domain.triggerType;
+    if (domain.eventName !== undefined)
+      entity.eventName = domain.eventName;
     if (domain.user !== undefined) entity.user = domain.user as any;
     if (domain.project !== undefined) entity.project = domain.project as any;
     return entity;

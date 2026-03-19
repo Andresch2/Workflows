@@ -1,0 +1,158 @@
+.data-explorer-header {
+    background: var(--surface-ground, #f8fafc);
+    padding: 1.25rem 1.25rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    border-bottom: 1px solid var(--surface-border, #e2e8f0);
+}
+
+.data-explorer-header .flex {
+    justify-content: space-between;
+}
+
+.data-explorer-header h5 {
+    margin: 0;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-color-secondary, #64748b);
+    font-weight: 700;
+}
+
+.input-tabs {
+    display: flex;
+    background: var(--surface-card, #ffffff);
+    border-radius: 6px;
+    padding: 3px;
+    border: 1px solid var(--surface-border, #e2e8f0);
+}
+
+.input-tabs button {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--text-color-secondary, #94a3b8);
+    font-size: 0.7rem;
+    padding: 0.35rem 0.6rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.input-tabs button.active {
+    background: var(--primary-color, #3b82f6);
+    color: #ffffff;
+}
+
+.data-explorer-content {
+    background: var(--surface-ground, #f8fafc);
+    padding: 0.75rem 1.25rem;
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem 1rem;
+    color: #94a3b8;
+    gap: 0.75rem;
+}
+
+.empty-state i {
+    font-size: 1.5rem;
+}
+
+.empty-state span {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.empty-state p {
+    font-size: 0.7rem;
+    color: #cbd5e1;
+    text-align: center;
+    max-width: 200px;
+}
+
+.node-accordion {
+    border: none !important;
+}
+
+.node-accordion ::ng-deep .p-accordion-header {
+    background: var(--surface-card, #ffffff) !important;
+    border: 1px solid var(--surface-border, #e2e8f0) !important;
+    padding: 0.5rem 0.85rem !important;
+    font-size: 0.75rem !important;
+    border-radius: 8px !important;
+    margin-bottom: 0.25rem;
+}
+
+.node-accordion ::ng-deep .p-accordion-content {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 0 0.5rem 0 !important;
+}
+
+.json-view {
+    padding: 0.75rem;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.7rem;
+    color: #0ea5e9;
+    background: var(--surface-card, #ffffff);
+    border: 1px solid var(--surface-border, #e2e8f0);
+    border-radius: 6px;
+    white-space: pre-wrap;
+    margin: 0;
+}
+
+/* ── Variable System Visual Indicators ── */
+
+:host ::ng-deep .active-variable-target {
+    outline: 2px solid #3b82f6 !important;
+    outline-offset: 1px;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15);
+    transition: outline 0.15s, box-shadow 0.15s;
+}
+
+:host ::ng-deep .drag-over-variable {
+    outline: 2px dashed #22c55e !important;
+    outline-offset: 1px;
+    background-color: rgba(34, 197, 94, 0.05) !important;
+    transition: outline 0.15s, background-color 0.15s;
+}
+
+.var-field-wrapper {
+    position: relative;
+}
+
+.variable-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: #3b82f6;
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    cursor: default;
+    user-select: none;
+    vertical-align: middle;
+    margin-left: 0.35rem;
+    letter-spacing: 0.03em;
+    transition: all 0.15s;
+}
+
+.variable-hint:hover {
+    background: rgba(59, 130, 246, 0.15);
+    color: #2563eb;
+}
+
+.variable-hint i {
+    font-size: 0.55rem;
+}

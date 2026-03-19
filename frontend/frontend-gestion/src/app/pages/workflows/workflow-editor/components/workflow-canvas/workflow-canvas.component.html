@@ -1,17 +1,6 @@
 <div #editorCanvas class="editor-canvas" [class.connecting-mode]="connecting" (dragover)="onCanvasDragOver($event)"
     (drop)="onCanvasDrop($event)" (click)="onCanvasClick()">
-    <!-- Connections (SVG Lines) -->
-    <svg class="connections-layer">
-        @for (conn of getConnections(); track conn.to.id) {
-        <line [attr.x1]="conn.from.x + 90" [attr.y1]="conn.from.y + 50" [attr.x2]="conn.to.x + 90" [attr.y2]="conn.to.y"
-            class="connection-line" [class.active-line]="conn.from.active || conn.to.active" />
-        <!-- Flecha -->
-        <polygon [attr.points]="getArrowPoints(conn.from, conn.to)" class="connection-arrow"
-            [class.active-line]="conn.from.active || conn.to.active" />
-        }
-    </svg>
-
-    <!-- Nodes -->
+    <!-- Layer 1: Nodes -->
     @for (node of nodes; track node.id) {
     <div class="workflow-node" [class.selected]="node.selected" [class.active]="node.active"
         [class.connecting-source]="connecting && connectingFromId === node.id"
@@ -20,21 +9,43 @@
         (mousedown)="onNodeMouseDown($event, node)" (click)="onNodeClick($event, node)">
         <div class="node-card">
             <div class="node-header">
-                <i class="pi" [class.pi-bolt]="node.type === 'TRIGGER'" [class.pi-globe]="node.type === 'HTTP'"
-                    [class.pi-link]="node.type === 'WEBHOOK'" [class.pi-database]="node.type === 'DATABASE'"
-                    [class.pi-bell]="node.type === 'NOTIFICATION'" [class.pi-clock]="node.type === 'DELAY'"
-                    [class.pi-list]="node.type === 'FORM'"></i>
+                <i class="pi" [ngClass]="getNodeIcon(node.type)"></i>
                 <span>{{ getNodeLabel(node.type) }}</span>
             </div>
             <div class="node-body">
-                <div class="node-name">{{ node.config?.['title'] || node.config?.['action'] || node.config?.['url'] ||
-                    getNodeLabel(node.type) }}</div>
+                <div class="node-name">{{ getNodeDisplayName(node) }}</div>
                 <small class="node-id">{{ node.id.startsWith('temp-') ? '● Nuevo' : node.id.substring(0, 8) + '...'
                     }}</small>
             </div>
         </div>
         <!-- Connector dot -->
+        @if (node.type !== 'IF') {
         <div class="connector connector-out" (click)="onConnectorClick($event, node)" title="Conectar desde aquí"></div>
+        } @else {
+        <div class="connector connector-out connector-true" (click)="onConnectorClick($event, node, 'true')"
+            title="Conectar rama Verdadera (True)"></div>
+        <div class="connector connector-out connector-false" (click)="onConnectorClick($event, node, 'false')"
+            title="Conectar rama Falsa (False)"></div>
+        }
     </div>
     }
+
+    <!-- Layer 2: Connections (Rendered on top but transparent to most events) -->
+    <svg class="connections-layer">
+        @for (conn of getConnections(); track conn.id) {
+        <g class="connection-group">
+            <path [attr.d]="getConnectionPath(conn.from, conn.to, conn.handle)" fill="none" class="connection-line"
+                [class.active-line]="conn.from.active || conn.to.active" />
+            <polygon [attr.points]="getArrowPoints(conn.from, conn.to, conn.handle)" class="connection-arrow"
+                [class.active-line]="conn.from.active || conn.to.active" />
+
+            <!-- Interactive Delete Button -->
+            <g class="delete-link" (click)="onDeleteConnection($event, conn.id)"
+                [attr.transform]="'translate(' + getDeleteButtonPos(conn.from, conn.to, conn.handle).x + ',' + getDeleteButtonPos(conn.from, conn.to, conn.handle).y + ')'">
+                <circle r="12" fill="#ef4444" stroke="white" stroke-width="2" />
+                <path d="M -4 -4 L 4 4 M -4 4 L 4 -4" stroke="white" stroke-width="2" stroke-linecap="round" />
+            </g>
+        </g>
+        }
+    </svg>
 </div>

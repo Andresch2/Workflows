@@ -5,6 +5,7 @@ import {
   IsNumber,
   IsObject,
   IsOptional,
+  IsString,
   IsUUID,
   ValidateIf,
 } from 'class-validator';
@@ -15,6 +16,11 @@ export class CreateWorkflowNodeDto {
   @IsEnum(WorkflowNodeType)
   @IsNotEmpty()
   type: WorkflowNodeType;
+
+  @ApiPropertyOptional({ type: String, example: 'Mi Nodo HTTP' })
+  @IsString()
+  @IsOptional()
+  name?: string | null;
 
   @ApiPropertyOptional({
     type: Object,
