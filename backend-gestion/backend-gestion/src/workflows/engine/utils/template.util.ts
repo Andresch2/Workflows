@@ -54,6 +54,11 @@ export class TemplateUtil {
     if (path === 'initialNodeId') return context.initialNodeId;
 
     let result = this.getValueByPath(context, path);
+    // Compatibilidad: si una expresión apunta a $json.* y no existe en el nodo previo,
+    // intentamos resolverla en otros espacios conocidos del contexto.
+    if (result === undefined && path.startsWith('$json.')) {
+      result = this.resolveLegacyJsonPath(path, context);
+    }
     if (result === undefined && !path.startsWith('$')) {
       result = this.getValueByPath(context.$json, path);
     }
@@ -116,6 +121,35 @@ export class TemplateUtil {
       if (current === null || current === undefined) return undefined;
       return current[key];
     }, obj);
+  }
+
+  private resolveLegacyJsonPath(path: string, context: WorkflowContext): any {
+    const relativePath = path.replace(/^\$json\./, '');
+    if (!relativePath) return undefined;
+
+    // 1) Variables globales (formularios acumulados)
+    let result = this.getValueByPath(context.$globals, relativePath);
+    if (result !== undefined) return result;
+
+    // 2) Resultado del nodo previo
+    result = this.getValueByPath(context.$prev?.data, relativePath);
+    if (result !== undefined) return result;
+
+    // 3) Nodos previos del workflow, incluyendo payloads anidados comunes (body/data)
+    if (context.$node) {
+      for (const nodeKey of Object.keys(context.$node)) {
+        const nodeData = context.$node[nodeKey]?.data;
+        if (!nodeData) continue;
+
+        result = this.getValueByPath(nodeData, relativePath);
+        if (result !== undefined) return result;
+
+        result = this.getValueByPath(nodeData?.body, relativePath);
+        if (result !== undefined) return result;
+      }
+    }
+
+    return undefined;
   }
 
   private normalizePath(path: string): string {

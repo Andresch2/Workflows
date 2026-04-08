@@ -111,6 +111,8 @@ export interface TableRecord {
                 <i class="pi pi-info-circle" style="color: #38bdf8; margin-right: 0.25rem;"></i>
                 Escriba su valor fijo (Ej. "Mario") o interpole din\u00e1micamente usando
                 <code [innerText]="'{{ $json.campo }}'" style="background: #e0f2fe; color: #0369a1; padding: 0.1rem 0.35rem; border-radius: 3px; font-size: 0.7rem; font-weight: 600;"></code>
+                o
+                <code [innerText]="'{{ $node.MI_NODO.data.campo }}'" style="background: #e0f2fe; color: #0369a1; padding: 0.1rem 0.35rem; border-radius: 3px; font-size: 0.7rem; font-weight: 600;"></code>
             </div>
 
             <!-- Table header -->

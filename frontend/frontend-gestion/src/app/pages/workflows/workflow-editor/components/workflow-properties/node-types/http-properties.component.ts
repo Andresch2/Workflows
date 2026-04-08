@@ -160,7 +160,13 @@ export class HttpPropertiesComponent implements OnChanges {
 
         this.workflowService.testHttpNode(payload).subscribe({
             next: (res) => {
-                const expected = res?.data ?? {};
+                const expected = {
+                    statusCode: res?.statusCode ?? 200,
+                    body: Object.prototype.hasOwnProperty.call(res || {}, 'body')
+                        ? res?.body
+                        : (res?.data ?? null),
+                    headers: res?.headers ?? {},
+                };
                 this.expectedResponseRaw.set(JSON.stringify(expected, null, 2));
                 this.expectedResponseValid.set(true);
                 this.testingHttp.set(false);

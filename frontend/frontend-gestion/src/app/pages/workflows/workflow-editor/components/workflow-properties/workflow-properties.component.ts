@@ -12,7 +12,6 @@ import {
     inject,
     signal,
 } from '@angular/core';
-import { DragDropModule, CdkDragEnd } from '@angular/cdk/drag-drop';
 import { FormsModule } from '@angular/forms';
 import { AccordionModule } from 'primeng/accordion';
 import { MessageService, TreeNode } from 'primeng/api';
@@ -33,14 +32,19 @@ import { DatabasePropertiesComponent } from './node-types/database-properties.co
 import { DelayPropertiesComponent } from './node-types/delay-properties.component';
 import { FormPropertiesComponent } from './node-types/form-properties.component';
 import { HttpPropertiesComponent } from './node-types/http-properties.component';
+import { IfPropertiesComponent } from './node-types/if-properties.component';
 import { NotificationPropertiesComponent } from './node-types/notification-properties.component';
 import { WebhookPropertiesComponent } from './node-types/webhook-properties.component';
-import { IfPropertiesComponent } from './node-types/if-properties.component';
 
 type AncestorPanel = {
     node: EditorNode;
     treeNodes: TreeNode[];
     isJsonShortcut: boolean;
+};
+
+type PointerPosition = {
+    x: number;
+    y: number;
 };
 
 @Component({
@@ -62,7 +66,6 @@ type AncestorPanel = {
         IfPropertiesComponent,
         CardModule,
         AccordionModule,
-        DragDropModule,
     ],
     templateUrl: './workflow-properties.component.html',
     styleUrls: ['./workflow-properties.component.css'],
@@ -102,19 +105,24 @@ export class WorkflowPropertiesComponent implements OnChanges, OnInit, OnDestroy
     });
 
     private lastFocusedInput: HTMLInputElement | HTMLTextAreaElement | null = null;
+    private currentDragTarget: HTMLInputElement | HTMLTextAreaElement | null = null;
+    private isDraggingVariable = false;
+    private draggingExpression: string | null = null;
+    private dragPointerId: number | null = null;
+    private dragStartPosition: PointerPosition | null = null;
+    private dragPreviewElement: HTMLDivElement | null = null;
 
     private readonly handleFocusIn = (event: Event) => {
         const target = event.target as HTMLElement | null;
         if (!target) return;
 
-        // Evitar agregar la clase a los inputs dentro del propio explorador de datos (como la búsqueda si tuviéramos una)
-        // Solo aplicar a los inputs dentro de la sección izquierda de configuración/propiedades.
         const isFromProperties = !!target.closest('.properties-column');
 
         if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
             if (this.lastFocusedInput) {
                 this.lastFocusedInput.classList.remove('active-variable-target');
             }
+
             if (isFromProperties) {
                 this.lastFocusedInput = target;
                 this.lastFocusedInput.classList.add('active-variable-target');
@@ -124,12 +132,73 @@ export class WorkflowPropertiesComponent implements OnChanges, OnInit, OnDestroy
         }
     };
 
+    private readonly handlePointerMove = (event: PointerEvent) => {
+        if (this.dragPointerId !== event.pointerId || !this.draggingExpression) {
+            return;
+        }
+
+        if (!this.isDraggingVariable) {
+            if (!this.dragStartPosition) {
+                return;
+            }
+
+            const deltaX = event.clientX - this.dragStartPosition.x;
+            const deltaY = event.clientY - this.dragStartPosition.y;
+            if (Math.hypot(deltaX, deltaY) < 5) {
+                return;
+            }
+
+            this.isDraggingVariable = true;
+            this.createDragPreview(this.draggingExpression);
+        }
+
+        event.preventDefault();
+        this.updateDragPreviewPosition(event.clientX, event.clientY);
+        const target = this.getDropTargetFromPoint(event.clientX, event.clientY);
+        this.setCurrentDragTarget(target);
+    };
+
+    private readonly handlePointerUp = (event: PointerEvent) => {
+        if (this.dragPointerId !== event.pointerId || !this.draggingExpression) {
+            return;
+        }
+
+        if (this.isDraggingVariable) {
+            const target = this.getDropTargetFromPoint(event.clientX, event.clientY);
+            const inserted = target
+                ? this.insertExpressionIntoField(target, this.draggingExpression)
+                : false;
+
+            if (inserted) {
+                this.messageService.add({
+                    severity: 'success',
+                    summary: 'Insertado',
+                    detail: 'Variable insertada exitosamente',
+                    life: 2000,
+                });
+            }
+        }
+
+        this.clearVariableDragState();
+    };
+
+    private readonly handlePointerCancel = () => {
+        this.clearVariableDragState();
+    };
+
     ngOnInit() {
         document.addEventListener('focusin', this.handleFocusIn, true);
+        document.addEventListener('pointermove', this.handlePointerMove, true);
+        document.addEventListener('pointerup', this.handlePointerUp, true);
+        document.addEventListener('pointercancel', this.handlePointerCancel, true);
     }
 
     ngOnDestroy() {
         document.removeEventListener('focusin', this.handleFocusIn, true);
+        document.removeEventListener('pointermove', this.handlePointerMove, true);
+        document.removeEventListener('pointerup', this.handlePointerUp, true);
+        document.removeEventListener('pointercancel', this.handlePointerCancel, true);
+        this.clearVariableDragState();
     }
 
     ngOnChanges(changes: SimpleChanges) {
@@ -146,7 +215,7 @@ export class WorkflowPropertiesComponent implements OnChanges, OnInit, OnDestroy
 
         if (this.parentNode) {
             const schema = this.resolveNodeSchema(this.parentNode);
-            const basePath = ''; // Se usa ruta directa que mapea a $json
+            const basePath = '$json';
             const treeNodes = this.buildTreeWithBase(schema, '', basePath);
 
             panels.push({
@@ -158,11 +227,11 @@ export class WorkflowPropertiesComponent implements OnChanges, OnInit, OnDestroy
 
         const ancestors = this.getUniqueAncestors();
         for (const ancestor of ancestors) {
-            // Evitar duplicar el parentNode si ya está como shortcut
             if (this.parentNode && ancestor.id === this.parentNode.id) continue;
 
             const schema = this.resolveNodeSchema(ancestor);
-            const basePath = ''; 
+            const ancestorRef = this.getNodeReferenceName(ancestor);
+            const basePath = `$node.${ancestorRef}.data`;
             const treeNodes = this.buildTreeWithBase(schema, '', basePath);
 
             panels.push({
@@ -211,10 +280,63 @@ export class WorkflowPropertiesComponent implements OnChanges, OnInit, OnDestroy
 
     private resolveNodeSchema(node: EditorNode): Record<string, any> {
         if (node.dataSchema && typeof node.dataSchema === 'object') {
-            return node.dataSchema;
+            const normalizedSchema = this.normalizeSchemaForExplorer(node);
+            if (normalizedSchema && typeof normalizedSchema === 'object' && !Array.isArray(normalizedSchema)) {
+                return normalizedSchema;
+            }
+            if (Array.isArray(normalizedSchema)) {
+                return { body: normalizedSchema, statusCode: 200, headers: {} };
+            }
         }
 
         return {};
+    }
+
+    private normalizeSchemaForExplorer(node: EditorNode): Record<string, any> | any[] | null {
+        const raw = node.dataSchema as any;
+        if (!raw || typeof raw !== 'object') return null;
+        let schema: any = raw;
+        if (!Array.isArray(schema) && this.isNumericKeyObject(schema)) {
+            const numericKeys = Object.keys(schema)
+                .map((k) => Number(k))
+                .filter((n) => !Number.isNaN(n))
+                .sort((a, b) => a - b);
+            schema = numericKeys.map((idx) => schema[String(idx)]);
+        }
+
+        if (node.type === WorkflowNodeType.HTTP) {
+            // Alinea el schema del editor con el output real
+            if (Array.isArray(schema)) {
+                return { statusCode: 200, body: schema, headers: {} };
+            }
+
+            const isHttpEnvelope =
+                Object.prototype.hasOwnProperty.call(schema, 'body') ||
+                Object.prototype.hasOwnProperty.call(schema, 'statusCode');
+
+            if (!isHttpEnvelope) {
+                return { statusCode: 200, body: schema, headers: {} };
+            }
+
+            if (
+                Object.prototype.hasOwnProperty.call(schema, 'data') &&
+                !Object.prototype.hasOwnProperty.call(schema, 'body')
+            ) {
+                return {
+                    statusCode: schema.statusCode ?? 200,
+                    body: schema.data,
+                    headers: schema.headers ?? {},
+                };
+            }
+        }
+
+        return schema;
+    }
+
+    private isNumericKeyObject(value: Record<string, any>): boolean {
+        const keys = Object.keys(value);
+        if (keys.length === 0) return false;
+        return keys.every((k) => /^\d+$/.test(k));
     }
 
     onConfigChangeFromChild(config: Record<string, any>) {
@@ -235,73 +357,39 @@ export class WorkflowPropertiesComponent implements OnChanges, OnInit, OnDestroy
         }
     }
 
-    onCdkDragEnd(event: CdkDragEnd, path: string, label?: string) {
-        const dropPoint = event.dropPoint;
-        // Encontrar el elemento en las coordenadas donde se soltó
-        const el = document.elementFromPoint(dropPoint.x, dropPoint.y) as HTMLElement;
-        
-        if (!el) return;
-        
-        // Encontrar el input o textarea más cercano
-        const inputOrTextarea = el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' ? el : el.querySelector('input, textarea');
-        
-        if (inputOrTextarea && (inputOrTextarea instanceof HTMLInputElement || inputOrTextarea instanceof HTMLTextAreaElement)) {
-            // Verificar si está dentro de la columna de propiedades para no soltar en lugares aleatorios
-            if (!inputOrTextarea.closest('.properties-column')) return;
-
-            const insertText = label ? `{{ ${label} }}` : `{{ ${path} }}`;
-            
-            inputOrTextarea.focus();
-            const start = inputOrTextarea.selectionStart ?? inputOrTextarea.value.length;
-            const end = inputOrTextarea.selectionEnd ?? inputOrTextarea.value.length;
-            const currentValue = inputOrTextarea.value ?? '';
-            
-            inputOrTextarea.value = currentValue.slice(0, start) + insertText + currentValue.slice(end);
-            
-            const nextCursor = start + insertText.length;
-            inputOrTextarea.selectionStart = nextCursor;
-            inputOrTextarea.selectionEnd = nextCursor;
-            
-            inputOrTextarea.dispatchEvent(new Event('input', { bubbles: true }));
-            inputOrTextarea.dispatchEvent(new Event('change', { bubbles: true }));
-            
-            this.messageService.add({
-                severity: 'success',
-                summary: 'Insertado',
-                detail: 'Variable insertada exitosamente',
-                life: 2000,
-            });
+    onVariablePointerDown(event: PointerEvent, path: string, label?: string) {
+        if (event.button !== 0) {
+            return;
         }
+
+        const expression = this.buildExpression(path, label);
+        if (!expression) {
+            return;
+        }
+
+        event.preventDefault();
+
+        this.clearVariableDragState();
+        this.draggingExpression = expression;
+        this.dragPointerId = event.pointerId;
+        this.dragStartPosition = {
+            x: event.clientX,
+            y: event.clientY,
+        };
     }
 
     private insertExpressionIntoFocusedField(expression: string): boolean {
-        const el = this.lastFocusedInput;
-
-        if (!el || !document.body.contains(el)) {
-            return false;
-        }
-
-        const start = el.selectionStart ?? el.value.length;
-        const end = el.selectionEnd ?? el.value.length;
-        const currentValue = el.value ?? '';
-
-        el.value = currentValue.slice(0, start) + expression + currentValue.slice(end);
-
-        const nextCursor = start + expression.length;
-        el.selectionStart = nextCursor;
-        el.selectionEnd = nextCursor;
-
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        el.dispatchEvent(new Event('change', { bubbles: true }));
-        el.focus();
-
-        return true;
+        return this.insertExpressionIntoField(this.lastFocusedInput, expression);
     }
 
     copyPath(path: string, label?: string) {
+        if (this.isDraggingVariable) {
+            return;
+        }
+
         if (!path) return;
 
-        const text = label ? `{{ ${label} }}` : `{{ ${path} }}`;
+        const text = this.buildExpression(path, label);
         const inserted = this.insertExpressionIntoFocusedField(text);
 
         if (inserted) {
@@ -436,5 +524,164 @@ export class WorkflowPropertiesComponent implements OnChanges, OnInit, OnDestroy
             default:
                 return { backgroundColor: '#475569', color: '#f1f5f9' };
         }
+    }
+
+    private buildExpression(path: string, label?: string): string {
+        const rawPath = path?.trim();
+        if (!rawPath) {
+            return label ? `{{ ${label} }}` : '';
+        }
+        const shortLabel = (label || '').trim();
+        const isSimpleIdentifier = /^[A-Za-z_][A-Za-z0-9_]*$/.test(shortLabel);
+        if (isSimpleIdentifier) {
+            return `{{ ${shortLabel} }}`;
+        }
+
+        const expressionPath = rawPath.startsWith('$') ? rawPath : `$json.${rawPath}`;
+        return `{{ ${expressionPath} }}`;
+    }
+
+    private insertExpressionIntoField(
+        field: HTMLInputElement | HTMLTextAreaElement | null,
+        expression: string,
+    ): boolean {
+        if (!field || !document.body.contains(field) || field.disabled || field.readOnly) {
+            return false;
+        }
+
+        field.focus();
+
+        const start = field.selectionStart ?? field.value.length;
+        const end = field.selectionEnd ?? field.value.length;
+        const currentValue = field.value ?? '';
+
+        field.value = currentValue.slice(0, start) + expression + currentValue.slice(end);
+
+        const nextCursor = start + expression.length;
+        field.selectionStart = nextCursor;
+        field.selectionEnd = nextCursor;
+
+        field.dispatchEvent(new Event('input', { bubbles: true }));
+        field.dispatchEvent(new Event('change', { bubbles: true }));
+
+        return true;
+    }
+
+    private getDropTargetFromPoint(
+        x: number,
+        y: number,
+    ): HTMLInputElement | HTMLTextAreaElement | null {
+        const elements = document.elementsFromPoint(x, y);
+
+        for (const element of elements) {
+            const target = this.resolveDropTarget(element);
+            if (target) {
+                return target;
+            }
+        }
+
+        return null;
+    }
+
+    private resolveDropTarget(
+        element: Element | null,
+    ): HTMLInputElement | HTMLTextAreaElement | null {
+        if (!element) {
+            return null;
+        }
+
+        if (this.isSupportedDropTarget(element)) {
+            return element;
+        }
+
+        if (!(element instanceof HTMLElement)) {
+            return null;
+        }
+
+        const wrapper = element.closest('.p-inputwrapper, .p-inputnumber, .p-select');
+        const nestedField =
+            wrapper instanceof HTMLElement
+                ? wrapper.querySelector('input, textarea')
+                : null;
+
+        return this.isSupportedDropTarget(nestedField) ? nestedField : null;
+    }
+
+    private isSupportedDropTarget(
+        element: Element | null,
+    ): element is HTMLInputElement | HTMLTextAreaElement {
+        return (
+            !!element &&
+            (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) &&
+            !!element.closest('.properties-column') &&
+            !element.disabled &&
+            !element.readOnly
+        );
+    }
+
+    private setCurrentDragTarget(target: HTMLInputElement | HTMLTextAreaElement | null) {
+        if (this.currentDragTarget === target) {
+            return;
+        }
+
+        if (this.currentDragTarget) {
+            this.currentDragTarget.classList.remove('drag-over-variable');
+        }
+
+        this.currentDragTarget = target;
+
+        if (this.currentDragTarget) {
+            this.currentDragTarget.classList.add('drag-over-variable');
+        }
+    }
+
+    private clearVariableDragState() {
+        this.removeDragPreview();
+        this.draggingExpression = null;
+        this.isDraggingVariable = false;
+        this.dragPointerId = null;
+        this.dragStartPosition = null;
+        this.setCurrentDragTarget(null);
+    }
+
+    private createDragPreview(expression: string) {
+        this.removeDragPreview();
+
+        const preview = document.createElement('div');
+        preview.className = 'workflow-variable-preview';
+        preview.textContent = expression;
+        preview.style.position = 'fixed';
+        preview.style.left = '0';
+        preview.style.top = '0';
+        preview.style.zIndex = '10000';
+        preview.style.pointerEvents = 'none';
+        preview.style.padding = '0.45rem 0.7rem';
+        preview.style.borderRadius = '8px';
+        preview.style.border = '1px solid #93c5fd';
+        preview.style.background = 'rgba(255, 255, 255, 0.96)';
+        preview.style.boxShadow = '0 10px 25px rgba(15, 23, 42, 0.18)';
+        preview.style.color = '#1d4ed8';
+        preview.style.fontFamily = "'JetBrains Mono', 'Fira Code', monospace";
+        preview.style.fontSize = '0.72rem';
+        preview.style.fontWeight = '600';
+        preview.style.whiteSpace = 'nowrap';
+        preview.style.opacity = '1';
+        preview.style.transform = 'translate3d(0, 0, 0)';
+        document.body.appendChild(preview);
+        this.dragPreviewElement = preview;
+    }
+
+    private updateDragPreviewPosition(x: number, y: number) {
+        if (!this.dragPreviewElement) {
+            return;
+        }
+
+        this.dragPreviewElement.style.left = `${x + 14}px`;
+        this.dragPreviewElement.style.top = `${y + 14}px`;
+    }
+
+    private removeDragPreview() {
+        this.dragPreviewElement?.remove();
+        this.dragPreviewElement = null;
     }
 }

@@ -1,9 +1,11 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { MenuItem } from 'primeng/api';
 import { RouterModule } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { StyleClassModule } from 'primeng/styleclass';
+import { finalize } from 'rxjs';
 import { AppConfigurator } from './app.configurator';
+import { AuthService } from '@/app/core/services/auth.service';
 import { LayoutService } from '@/app/layout/service/layout.service';
 
 @Component({
@@ -76,6 +78,10 @@ import { LayoutService } from '@/app/layout/service/layout.service';
                         <i class="pi pi-user"></i>
                         <span>Profile</span>
                     </button>
+                    <button type="button" class="layout-topbar-action" [disabled]="loggingOut()" (click)="onLogout()">
+                        <i class="pi" [ngClass]="loggingOut() ? 'pi-spinner pi-spin' : 'pi-sign-out'"></i>
+                        <span>{{ loggingOut() ? 'Cerrando...' : 'Cerrar sesión' }}</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -85,11 +91,24 @@ export class AppTopbar {
     items!: MenuItem[];
 
     layoutService = inject(LayoutService);
+    authService = inject(AuthService);
+    loggingOut = signal(false);
 
     toggleDarkMode() {
         this.layoutService.layoutConfig.update((state) => ({
             ...state,
             darkTheme: !state.darkTheme
         }));
+    }
+
+    onLogout() {
+        if (this.loggingOut()) {
+            return;
+        }
+
+        this.loggingOut.set(true);
+        this.authService.logout()
+            .pipe(finalize(() => this.loggingOut.set(false)))
+            .subscribe();
     }
 }

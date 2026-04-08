@@ -156,14 +156,8 @@
                                 }">
                             <ng-template let-node pTemplate="default">
                                 @if (node.leaf) {
-                                <div cdkDrag [cdkDragData]="node.data.path" (cdkDragEnded)="onCdkDragEnd($event, node.data.path, node.label)"
-                                    (click)="copyPath(node.data.path, node.label)"
-                                    class="flex items-center gap-2 w-full p-1 rounded transition-colors group cursor-grab hover:bg-blue-50 active:cursor-grabbing">
-                                    
-                                    <div *cdkDragPreview class="px-2 py-1 bg-white text-blue-900 rounded shadow-md border border-blue-300 font-mono text-xs z-[9999] opacity-90 flex items-center gap-2">
-                                        <i class="pi pi-bolt text-yellow-500"></i>
-                                        {{ '{{ ' + (node.label || node.data.path) + ' }}' }}
-                                    </div>
+                                <div (pointerdown)="onVariablePointerDown($event, node.data.path, node.label)"
+                                    class="workflow-variable-item flex items-center gap-2 w-full p-1 rounded transition-colors group cursor-grab hover:bg-blue-50 active:cursor-grabbing">
 
                                     <i class="pi pi-grip-lines text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" style="font-size: 0.6rem; margin-right: -4px;"></i>
                                     

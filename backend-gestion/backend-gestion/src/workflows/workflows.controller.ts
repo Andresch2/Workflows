@@ -216,7 +216,11 @@ export class WorkflowsController {
         data = text;
       }
 
-      return { statusCode: response.status, data };
+      return {
+        statusCode: response.status,
+        body: data,
+        headers: Object.fromEntries(response.headers.entries()),
+      };
     } catch (error: any) {
       return { statusCode: 500, error: error.message };
     }

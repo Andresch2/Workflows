@@ -354,9 +354,7 @@ export class WorkflowEditorComponent implements OnInit {
         const schemaCandidate = config['__dataSchema'];
         if (Object.prototype.hasOwnProperty.call(config, '__dataSchema')) {
             delete nextConfig['__dataSchema'];
-            nextDataSchema = schemaCandidate && typeof schemaCandidate === 'object'
-                ? { ...schemaCandidate }
-                : null;
+            nextDataSchema = this.cloneDataSchema(schemaCandidate);
         }
 
         this.nodes.update(nodes =>
@@ -367,6 +365,19 @@ export class WorkflowEditorComponent implements OnInit {
         if (updated) {
             this.selectedNode.set({ ...updated });
         }
+    }
+
+    private cloneDataSchema(schemaCandidate: unknown): EditorNode['dataSchema'] {
+        if (schemaCandidate === null || schemaCandidate === undefined) {
+            return null;
+        }
+
+        if (typeof schemaCandidate !== 'object') {
+            return null;
+        }
+
+        // Preserva arrays/objetos tal cual para evitar convertir arrays en {"0": ...}
+        return JSON.parse(JSON.stringify(schemaCandidate));
     }
 
     updateNodeName(name: string) {

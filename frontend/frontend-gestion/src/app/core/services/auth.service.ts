@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { Observable, tap } from 'rxjs';
+import { catchError, finalize, Observable, of, tap } from 'rxjs';
 import { LoginRequest, LoginResponse, User } from '../models/auth.model';
 import { RoleEnum } from '../models/role.enum';
 
@@ -53,12 +53,20 @@ export class AuthService {
     return this.hasRole(RoleEnum.ADMIN);
   }
 
-  logout(): void {
-    localStorage.removeItem(this.TOKEN_KEY);
-    localStorage.removeItem(this.REFRESH_TOKEN_KEY);
-    this.currentUser.set(null);
-    this.isAuthenticated.set(false);
-    this.router.navigate(['/auth/login']);
+  logout(): Observable<void> {
+    const token = this.getToken();
+
+    if (!token) {
+      this.clearSession(true);
+      return of(void 0);
+    }
+
+    return this.http.post<void>(`${this.API_URL}/auth/logout`, {}).pipe(
+      catchError(() => of(void 0)),
+      finalize(() => {
+        this.clearSession(true);
+      })
+    );
   }
 
   getToken(): string | null {
@@ -83,9 +91,26 @@ export class AuthService {
         this.currentUser.set(user);
         this.isAuthenticated.set(true);
       },
-      error: () => {
+      error: (error) => {
+        if (error?.status === 401 || error?.status === 403) {
+          this.clearSession();
+          return;
+        }
+
+        this.currentUser.set(null);
         this.isAuthenticated.set(false);
       }
     });
+  }
+
+  private clearSession(redirectToLogin = false): void {
+    localStorage.removeItem(this.TOKEN_KEY);
+    localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+    this.currentUser.set(null);
+    this.isAuthenticated.set(false);
+
+    if (redirectToLogin) {
+      void this.router.navigate(['/auth/login']);
+    }
   }
 }
