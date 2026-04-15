@@ -70,27 +70,34 @@
                     (configChange)="onConfigChangeFromChild($event)"></app-if-properties>
                 }
 
+                @case ('CODE') {
+                <app-code-properties [node]="node"
+                    (configChange)="onConfigChangeFromChild($event)"></app-code-properties>
+                }
+
                 @case ('TRIGGER') {
                 <p class="text-xs text-gray-500 p-4">Nodo de entrada del workflow.</p>
                 }
                 }
             </p-card>
 
-            <p-card styleClass="shadow-sm border border-gray-200 dark:border-slate-800">
-                <div class="flex items-center gap-2 cursor-pointer text-sm font-semibold mb-2"
-                    (click)="showAdvancedJson.set(!showAdvancedJson())">
-                    <i class="pi" [ngClass]="showAdvancedJson() ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
-                    <span>JSON Avanzado</span>
-                </div>
+            <div class="json-toggle" (click)="showAdvancedJson.set(!showAdvancedJson())">
+                <i class="pi" [ngClass]="showAdvancedJson() ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
+                <span>JSON Avanzado</span>
+            </div>
 
-                @if (showAdvancedJson()) {
-                <div class="flex flex-col gap-2 mt-2">
-                    <textarea class="w-full bg-slate-900 text-slate-200 font-mono text-xs p-3 rounded"
-                        [class.border-red-500]="!configValid()" [value]="configJson()"
-                        (input)="onConfigChange($any($event.target).value)" rows="8"></textarea>
-                </div>
+            @if (showAdvancedJson()) {
+            <div class="flex flex-col gap-2 mt-2">
+                <textarea class="json-editor" [class.invalid]="!configValid()" [value]="configJson()"
+                    (input)="onConfigChange($any($event.target).value)" rows="8"
+                    placeholder='{"key": "value"}'></textarea>
+                @if (!configValid()) {
+                <small class="error-text">
+                    <i class="pi pi-exclamation-circle"></i> JSON inválido
+                </small>
                 }
-            </p-card>
+            </div>
+            }
         </div>
 
         <div class="config-actions">

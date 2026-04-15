@@ -34,6 +34,7 @@ import { FindAllWorkflowsDto } from './dto/find-all-workflows.dto';
 import { UpdateWorkflowNodeDto } from './dto/update-workflow-node.dto';
 import { UpdateWorkflowDto } from './dto/update-workflow.dto';
 import { DatabaseHandler } from './engine/handlers/database.handler';
+import { WorkflowEngineService } from './engine/workflow-engine.service';
 import { WorkflowsService } from './workflows.service';
 
 @ApiTags('Workflows')
@@ -47,6 +48,7 @@ export class WorkflowsController {
   constructor(
     private readonly workflowsService: WorkflowsService,
     private readonly databaseHandler: DatabaseHandler,
+    private readonly workflowEngineService: WorkflowEngineService,
   ) { }
 
   // Endpoints de Configuración
@@ -125,6 +127,15 @@ export class WorkflowsController {
       }
       throw error;
     }
+  }
+
+  @Post(':id/execute/sync')
+  @ApiParam({ name: 'id', type: String })
+  async executeSync(
+    @Param('id') id: string,
+    @Body() payload: Record<string, any>,
+  ) {
+    return this.workflowEngineService.executeWorkflow(id, undefined, payload);
   }
 
   // Endpoints de Nodos de Workflow

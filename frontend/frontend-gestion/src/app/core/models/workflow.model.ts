@@ -7,6 +7,7 @@ export enum WorkflowNodeType {
     NOTIFICATION = 'NOTIFICATION',
     FORM = 'FORM',
     IF = 'IF',
+    CODE = 'CODE',
 }
 
 export type WorkflowTriggerType = 'webhook' | 'http' | 'event';

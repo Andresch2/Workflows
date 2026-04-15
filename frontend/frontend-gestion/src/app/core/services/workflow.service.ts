@@ -129,6 +129,10 @@ export class WorkflowService {
         return this.http.post(`${this.apiUrl}/${id}/execute`, payload);
     }
 
+    executeWorkflowSync(id: string, payload: any = {}): Observable<any> {
+        return this.http.post(`${this.apiUrl}/${id}/execute/sync`, payload);
+    }
+
     getLatestWebhookPayload(workflowId: string): Observable<any> {
         return this.http.get<any>(`${this.apiUrl}/webhook/${workflowId}/latest`);
     }

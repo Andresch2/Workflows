@@ -1,58 +1,77 @@
-<div #editorCanvas class="editor-canvas" [class.connecting-mode]="connecting" (dragover)="onCanvasDragOver($event)"
+﻿<div #editorCanvas class="editor-canvas" [class.connecting-mode]="connecting" (dragover)="onCanvasDragOver($event)"
     (drop)="onCanvasDrop($event)" (click)="onCanvasClick()">
 
-    @for (node of nodes; track node.id) {
-    <div class="workflow-node" [class.selected]="node.selected" [class.active]="node.active"
-        [class.connecting-source]="connecting && connectingFromId === node.id"
-        [class.connecting-target]="connecting && connectingFromId !== node.id"
-        [ngClass]="'node-' + node.type.toLowerCase()" [style.left.px]="node.x" [style.top.px]="node.y"
-        (mousedown)="onNodeMouseDown($event, node)" (click)="onNodeClick($event, node)">
-
-        <div class="node-card">
-            <div class="node-header">
-                <i class="pi" [ngClass]="getNodeIcon(node.type)"></i>
-                <span>{{ getNodeLabel(node.type) }}</span>
-            </div>
-            <div class="node-body">
-                <div class="node-name">{{ getNodeDisplayName(node) }}</div>
-                <small class="node-id">{{ node.id.startsWith('temp-') ? '● Nuevo' : node.id.substring(0, 8) + '...'
-                    }}</small>
-            </div>
-        </div>
-
-        @if (node.type !== 'IF') {
-        <div class="connector connector-out" (click)="onConnectorClick($event, node)" title="Conectar desde aquí"></div>
-        } @else {
-        <div class="connector connector-out connector-true" (click)="onConnectorClick($event, node, 'true')"
-            title="Conectar rama Verdadera"></div>
-        <div class="connector connector-out connector-false" (click)="onConnectorClick($event, node, 'false')"
-            title="Conectar rama Falsa"></div>
-        }
+    <div class="canvas-controls" (click)="$event.stopPropagation()">
+        <button type="button" class="canvas-control-btn" (click)="zoomOut()" title="Alejar">-</button>
+        <button type="button" class="canvas-control-btn zoom-label" (click)="resetZoom()" title="Restablecer zoom">
+            {{ zoomPercent }}%
+        </button>
+        <button type="button" class="canvas-control-btn" (click)="zoomIn()" title="Acercar">+</button>
+        <button type="button" class="canvas-control-btn fit-btn" (click)="fitToScreen()" title="Ajustar a pantalla">
+            Ajustar
+        </button>
     </div>
-    }
 
-    <svg class="connections-layer">
-        <defs>
-            <marker id="arrowhead-default" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
-                <polygon points="0 0, 6 2, 0 4" fill="#94a3b8" />
-            </marker>
-        </defs>
+    <div class="canvas-zoom-space" [style.width.px]="canvasWidth * zoom" [style.height.px]="canvasHeight * zoom">
+        <div class="canvas-zoom-layer" [style.width.px]="canvasWidth" [style.height.px]="canvasHeight"
+            [style.transform]="'scale(' + zoom + ')'">
 
-        @for (conn of getConnections(); track conn.id) {
-        <g class="connection-group" [class.active-group]="conn.from.active || conn.to.active">
-            <path [attr.d]="getConnectionPath(conn.from, conn.to, conn.handle)" fill="none" class="connection-hit-area"
-                (click)="onDeleteConnection($event, conn.id)" />
+            @for (node of nodes; track node.id) {
+            <div class="workflow-node" [class.selected]="node.selected" [class.active]="node.active"
+                [class.connecting-source]="connecting && connectingFromId === node.id"
+                [class.connecting-target]="connecting && connectingFromId !== node.id"
+                [ngClass]="'node-' + node.type.toLowerCase()" [style.left.px]="node.x" [style.top.px]="node.y"
+                (mousedown)="onNodeMouseDown($event, node)" (click)="onNodeClick($event, node)">
 
-            <path [attr.d]="getConnectionPath(conn.from, conn.to, conn.handle)" fill="none" class="connection-line"
-                [class.active-line]="conn.from.active || conn.to.active"
-                [attr.marker-end]="'url(#arrowhead-default)'" />
+                <div class="node-card">
+                    <div class="node-header">
+                        <i class="pi" [ngClass]="getNodeIcon(node.type)"></i>
+                        <span>{{ getNodeLabel(node.type) }}</span>
+                    </div>
+                    <div class="node-body">
+                        <div class="node-name">{{ getNodeDisplayName(node) }}</div>
+                        <small class="node-id">{{ node.id.startsWith('temp-') ? '● Nuevo' : node.id.substring(0, 8) + '...'
+                            }}</small>
+                    </div>
+                </div>
 
-            <g class="delete-link" (click)="onDeleteConnection($event, conn.id)"
-                [attr.transform]="'translate(' + getDeleteButtonPos(conn.from, conn.to, conn.handle).x + ',' + getDeleteButtonPos(conn.from, conn.to, conn.handle).y + ')'">
-                <circle r="8" />
-                <path d="M -3 -3 L 3 3 M -3 3 L 3 -3" stroke="white" stroke-width="2" stroke-linecap="round" />
-            </g>
-        </g>
-        }
-    </svg>
+                @if (node.type !== 'IF') {
+                <div class="connector connector-out" (click)="onConnectorClick($event, node)" title="Conectar desde aquí"></div>
+                } @else {
+                <div class="connector connector-out connector-true" (click)="onConnectorClick($event, node, 'true')"
+                    title="Conectar rama Verdadera"></div>
+                <div class="connector connector-out connector-false" (click)="onConnectorClick($event, node, 'false')"
+                    title="Conectar rama Falsa"></div>
+                }
+            </div>
+            }
+
+            <svg class="connections-layer" [attr.width]="canvasWidth" [attr.height]="canvasHeight"
+                [attr.viewBox]="'0 0 ' + canvasWidth + ' ' + canvasHeight">
+                <defs>
+                    <marker id="arrowhead-default" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
+                        <polygon points="0 0, 6 2, 0 4" fill="#94a3b8" />
+                    </marker>
+                </defs>
+
+                @for (conn of getConnections(); track conn.id) {
+                <g class="connection-group" [class.active-group]="conn.from.active || conn.to.active">
+                    <path [attr.d]="getConnectionPath(conn.from, conn.to, conn.handle)" fill="none" class="connection-hit-area"
+                        (click)="onDeleteConnection($event, conn.id)" />
+
+                    <path [attr.d]="getConnectionPath(conn.from, conn.to, conn.handle)" fill="none" class="connection-line"
+                        [class.active-line]="conn.from.active || conn.to.active"
+                        [attr.marker-end]="'url(#arrowhead-default)'" />
+
+                    <g class="delete-link" (click)="onDeleteConnection($event, conn.id)"
+                        [attr.transform]="'translate(' + getDeleteButtonPos(conn.from, conn.to, conn.handle).x + ',' + getDeleteButtonPos(conn.from, conn.to, conn.handle).y + ')'">
+                        <circle r="8" />
+                        <path d="M -3 -3 L 3 3 M -3 3 L 3 -3" stroke="white" stroke-width="2" stroke-linecap="round" />
+                    </g>
+                </g>
+                }
+            </svg>
+        </div>
+    </div>
 </div>
+

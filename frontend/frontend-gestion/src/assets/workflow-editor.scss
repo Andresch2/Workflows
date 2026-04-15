@@ -13,7 +13,7 @@ $wf-accent-light: rgba(99, 102, 241, 0.15);
 .editor-container {
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 80px);
+    block-size: calc(100vh - 80px);
     background: var(--surface-ground);
 }
 
@@ -25,7 +25,7 @@ $wf-accent-light: rgba(99, 102, 241, 0.15);
     justify-content: space-between;
     padding: 0.75rem 1.5rem;
     background: var(--surface-card);
-    border-bottom: 1px solid var(--surface-border);
+    border-block-end: 1px solid var(--surface-border);
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
     z-index: 10;
 
@@ -63,14 +63,15 @@ $wf-accent-light: rgba(99, 102, 241, 0.15);
 // ==================== Toolbox ====================
 
 .toolbox {
-    width: $wf-toolbox-width;
-    min-width: $wf-toolbox-width;
+    inline-size: $wf-toolbox-width;
+    min-inline-size: $wf-toolbox-width;
     background: var(--surface-card);
-    border-right: 1px solid var(--surface-border);
+    border-inline-end: 1px solid var(--surface-border);
     padding: 1.25rem;
     display: flex;
     flex-direction: column;
     gap: 0.6rem;
+    block-size: 100%;
 
     h4 {
         margin: 0 0 0.75rem 0;
@@ -86,10 +87,121 @@ $wf-accent-light: rgba(99, 102, 241, 0.15);
         &::before {
             content: '';
             display: inline-block;
-            width: 18px;
-            height: 3px;
+            inline-size: 18px;
+            block-size: 3px;
             background: linear-gradient(90deg, $wf-accent, #a855f7);
             border-radius: 4px;
+        }
+    }
+
+    .toolbox-list {
+        flex: 1;
+        min-block-size: 0;
+        overflow-y: scroll;
+        scrollbar-gutter: stable;
+        padding-inline-end: 0.55rem;
+        scrollbar-width: auto;
+        scrollbar-color: rgba(100, 116, 139, 0.95) rgba(226, 232, 240, 0.95);
+
+        &::-webkit-scrollbar {
+            inline-size: 14px;
+        }
+
+        &::-webkit-scrollbar-track {
+            background: rgba(226, 232, 240, 0.95);
+            border-radius: 999px;
+        }
+
+        &::-webkit-scrollbar-thumb {
+            background: rgba(100, 116, 139, 0.95);
+            border-radius: 999px;
+            border: 2px solid rgba(226, 232, 240, 0.95);
+        }
+
+        &::-webkit-scrollbar-thumb:hover {
+            background: rgba(71, 85, 105, 0.98);
+        }
+    }
+
+    .toolbox-category {
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+        padding-block-end: 0.55rem;
+
+        &:last-of-type {
+            border-block-end: none;
+        }
+    }
+
+    .toolbox-category-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        inline-size: 100%;
+        padding: 0.1rem 0.2rem;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        border-radius: 10px;
+        transition: background 0.18s ease, color 0.18s ease;
+
+        &:hover {
+            background: rgba(99, 102, 241, 0.05);
+        }
+    }
+
+    .toolbox-category-title {
+        color: var(--text-color-secondary);
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        opacity: 0.85;
+        text-align: start;
+    }
+
+    .toolbox-category-meta {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        color: var(--text-color-secondary);
+    }
+
+    .toolbox-category-count {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-inline-size: 1.5rem;
+        block-size: 1.2rem;
+        padding-inline: 0.3rem;
+        border-radius: 999px;
+        background: rgba(99, 102, 241, 0.12);
+        color: $wf-accent;
+        font-size: 0.68rem;
+        font-weight: 700;
+    }
+
+    .toolbox-category-arrow {
+        font-size: 0.72rem;
+        color: $wf-accent;
+        transition: transform 0.18s ease;
+    }
+
+    .toolbox-category-items {
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+        padding-block-start: 0.15rem;
+        overflow: hidden;
+        transition: max-height 0.2s ease, opacity 0.18s ease, padding 0.18s ease;
+
+        &.is-collapsed {
+            max-height: 0;
+            opacity: 0;
+            padding-block-start: 0;
+            pointer-events: none;
         }
     }
 
@@ -99,15 +211,15 @@ $wf-accent-light: rgba(99, 102, 241, 0.15);
         gap: 0.75rem;
         padding: 0.75rem 1rem;
         border-radius: 12px;
-        border-left: 4px solid;
+        border-inline-start: 4px solid;
         background: var(--surface-ground);
         cursor: grab;
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 
         i {
             font-size: 1.1rem;
-            width: 34px;
-            height: 34px;
+            inline-size: 34px;
+            block-size: 34px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -146,7 +258,7 @@ $wf-accent-light: rgba(99, 102, 241, 0.15);
     }
 
     .toolbox-hint {
-        margin-top: auto;
+        margin-block-start: 0.35rem;
         padding: 0.75rem;
         background: $wf-accent-light;
         border-radius: 10px;
@@ -160,7 +272,7 @@ $wf-accent-light: rgba(99, 102, 241, 0.15);
         i {
             color: $wf-accent;
             font-size: 0.9rem;
-            margin-top: 1px;
+            margin-block-start: 1px;
         }
     }
 }
@@ -174,18 +286,78 @@ $wf-accent-light: rgba(99, 102, 241, 0.15);
     background:
         radial-gradient(circle, rgba(99, 102, 241, 0.06) 1px, transparent 1px);
     background-size: 28px 28px;
-    min-height: 600px;
+    min-block-size: 600px;
 
     &.connecting-mode {
         cursor: crosshair;
     }
 
+    .canvas-controls {
+        position: sticky;
+        inset-block-start: 0.75rem;
+        inset-inline-start: 0.75rem;
+        z-index: 40;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.4rem;
+        border: 1px solid var(--surface-border);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(8px);
+        box-shadow: 0 8px 22px rgba(15, 23, 42, 0.12);
+    }
+
+    .canvas-control-btn {
+        border: 1px solid var(--surface-border);
+        background: var(--surface-card);
+        color: var(--text-color);
+        min-inline-size: 32px;
+        block-size: 30px;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 0.82rem;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        padding: 0 0.5rem;
+
+        &:hover {
+            border-color: $wf-accent;
+            color: $wf-accent;
+            transform: translateY(-1px);
+        }
+    }
+
+    .zoom-label {
+        min-inline-size: 58px;
+        font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        font-size: 0.76rem;
+    }
+
+    .fit-btn {
+        min-inline-size: 62px;
+    }
+
+    .canvas-zoom-space {
+        position: relative;
+        min-inline-size: 100%;
+        min-block-size: 100%;
+    }
+
+    .canvas-zoom-layer {
+        position: absolute;
+        inset-block-start: 0;
+        inset-inline-start: 0;
+        transform-origin: top left;
+        will-change: transform;
+    }
+
     .connections-layer {
         position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
+        inset-block-start: 0;
+        inset-inline-start: 0;
+        inline-size: 100%;
+        block-size: 100%;
         pointer-events: none;
         overflow: visible;
         z-index: 20;
@@ -285,7 +457,7 @@ $wf-accent-light: rgba(99, 102, 241, 0.15);
 
 .workflow-node {
     position: absolute;
-    width: $wf-node-width;
+    inline-size: $wf-node-width;
     border-radius: $wf-node-radius;
     cursor: move;
     z-index: 10;
@@ -358,8 +530,8 @@ $wf-accent-light: rgba(99, 102, 241, 0.15);
 
         i {
             font-size: 1rem;
-            width: 30px;
-            height: 30px;
+            inline-size: 30px;
+            block-size: 30px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -378,7 +550,7 @@ $wf-accent-light: rgba(99, 102, 241, 0.15);
             font-weight: 600;
             color: white;
             opacity: 0.95;
-            margin-bottom: 2px;
+            margin-block-end: 2px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -393,8 +565,8 @@ $wf-accent-light: rgba(99, 102, 241, 0.15);
 
     .connector {
         position: absolute;
-        width: 18px;
-        height: 18px;
+        inline-size: 18px;
+        block-size: 18px;
         border-radius: 50%;
         background: white;
         border: 3px solid rgba(0, 0, 0, 0.25);
@@ -412,18 +584,18 @@ $wf-accent-light: rgba(99, 102, 241, 0.15);
     }
 
     .connector-out {
-        bottom: -9px;
-        left: 50%;
+        inset-block-end: -9px;
+        inset-inline-start: 50%;
         transform: translateX(-50%);
 
         &.connector-true {
-            left: 30%;
+            inset-inline-start: 30%;
             background: #4ade80 !important; // Tailwind green-400
             border-color: #22c55e !important; // Tailwind green-500
         }
 
         &.connector-false {
-            left: 70%;
+            inset-inline-start: 70%;
             background: #f87171 !important; // Tailwind red-400
             border-color: #ef4444 !important; // Tailwind red-500
         }
@@ -472,6 +644,10 @@ $wf-accent-light: rgba(99, 102, 241, 0.15);
 
 .node-if .node-card {
     background: linear-gradient(135deg, #ec4899, #f472b6);
+}
+
+.node-code .node-card {
+    background: linear-gradient(135deg, #0891b2, #22d3ee);
 }
 
 // ==================== Animations ====================
@@ -531,18 +707,18 @@ $wf-accent-light: rgba(99, 102, 241, 0.15);
 .config-panel {
     display: flex;
     flex-direction: column;
-    width: 360px;
-    min-width: 360px;
+    inline-size: 360px;
+    min-inline-size: 360px;
     background: var(--surface-card);
-    border-left: 1px solid var(--surface-border);
+    border-inline-start: 1px solid var(--surface-border);
     padding: 1.25rem;
     overflow: hidden;
-    max-height: 100%;
+    max-block-size: 100%;
     transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     &.two-column {
-        width: 760px;
-        min-width: 760px;
+        inline-size: 760px;
+        min-inline-size: 760px;
         flex-direction: row;
         padding: 0; // We use padding on inner columns
         gap: 0;
@@ -552,20 +728,20 @@ $wf-accent-light: rgba(99, 102, 241, 0.15);
             display: flex;
             flex-direction: column;
             padding: 1.25rem;
-            border-right: 1px solid var(--surface-border);
+            border-inline-end: 1px solid var(--surface-border);
             overflow-y: auto;
-            max-height: 100%;
+            max-block-size: 100%;
         }
 
         .data-explorer-column {
-            width: 340px;
-            min-width: 340px;
+            inline-size: 340px;
+            min-inline-size: 340px;
             display: flex;
             flex-direction: column;
             background: var(--surface-ground);
-            border-left: 1px solid var(--surface-border);
+            border-inline-start: 1px solid var(--surface-border);
             overflow-y: hidden;
-            max-height: 100%;
+            max-block-size: 100%;
         }
     }
 
@@ -592,17 +768,17 @@ $wf-accent-light: rgba(99, 102, 241, 0.15);
     }
 
     .config-section {
-        margin-bottom: 0.75rem;
-        padding-bottom: 0.5rem;
-        border-bottom: 1px solid var(--surface-border);
+        margin-block-end: 0.75rem;
+        padding-block-end: 0.5rem;
+        border-block-end: 1px solid var(--surface-border);
 
         &:last-of-type {
-            border-bottom: none;
+            border-block-end: none;
         }
 
         label {
             display: block;
-            margin-bottom: 0.3rem;
+            margin-block-end: 0.3rem;
             font-size: 0.7rem;
             color: var(--text-color-secondary);
             font-weight: 600;
@@ -650,15 +826,15 @@ $wf-accent-light: rgba(99, 102, 241, 0.15);
     }
 
     .form-group {
-        margin-bottom: 0.75rem;
+        margin-block-end: 0.75rem;
 
         &:last-child {
-            margin-bottom: 0;
+            margin-block-end: 0;
         }
 
         label {
             display: block;
-            margin-bottom: 0.3rem;
+            margin-block-end: 0.3rem;
             font-size: 0.72rem;
             color: var(--text-color-secondary);
             font-weight: 600;
@@ -674,7 +850,7 @@ $wf-accent-light: rgba(99, 102, 241, 0.15);
         }
 
         .w-full {
-            width: 100%;
+            inline-size: 100%;
         }
     }
 
@@ -703,8 +879,8 @@ $wf-accent-light: rgba(99, 102, 241, 0.15);
         font-size: 0.78rem;
         font-weight: 600;
         color: var(--text-color-secondary);
-        border-top: 1px solid var(--surface-border);
-        margin-top: 0.5rem;
+        border-block-start: 1px solid var(--surface-border);
+        margin-block-start: 0.5rem;
         transition: color 0.15s ease;
 
         &:hover {
@@ -718,13 +894,13 @@ $wf-accent-light: rgba(99, 102, 241, 0.15);
     }
 
     .config-textarea {
-        width: 100%;
+        inline-size: 100%;
         font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
         font-size: 0.78rem;
         padding: 0.65rem;
         border: 2px solid var(--surface-border);
         border-radius: 10px;
-        background: var(--surface-ground);
+        background: var(--surface-card);
         color: var(--text-color);
         resize: vertical;
         transition: all 0.15s ease;
@@ -742,22 +918,50 @@ $wf-accent-light: rgba(99, 102, 241, 0.15);
         }
     }
 
+    .json-editor {
+        background-color: #ffffff !important;
+        color: #1e293b !important;
+        border: 1px solid #cbd5e1 !important;
+        font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+        font-size: 0.75rem;
+        padding: 0.75rem;
+        border-radius: 8px;
+        width: 100%;
+        line-height: 1.5;
+        resize: vertical;
+
+        &:focus {
+            outline: none;
+            border-color: $wf-accent !important;
+            box-shadow: 0 0 0 3px $wf-accent-light;
+        }
+
+        &::placeholder {
+            color: #94a3b8;
+        }
+
+        &.invalid {
+            border-color: #ef4444 !important;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+        }
+    }
+
     .error-text {
         color: #ef4444;
         font-size: 0.75rem;
         display: flex;
         align-items: center;
         gap: 0.25rem;
-        margin-top: 0.35rem;
+        margin-block-start: 0.35rem;
         font-weight: 500;
     }
 
     .config-actions {
         display: flex;
         gap: 0.5rem;
-        margin-top: auto;
-        padding-top: 0.75rem;
-        border-top: 1px solid var(--surface-border);
+        margin-block-start: auto;
+        padding-block-start: 0.75rem;
+        border-block-start: 1px solid var(--surface-border);
     }
 }
 

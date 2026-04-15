@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, Input, OnInit, inject, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormsModule, NgForm } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
@@ -27,7 +27,7 @@ import { WorkflowService } from '../../../core/services/workflow.service';
   template: `
     <div class="public-form-container" [class.modal-mode]="nodeId">
       <div *ngIf="!nodeId" class="glass-background"></div>
-      
+
       <div class="form-wrapper" [class.w-full]="nodeId">
         <p-card *ngIf="!submitted(); else successState" styleClass="premium-card">
           <ng-template pTemplate="header">
@@ -43,7 +43,7 @@ import { WorkflowService } from '../../../core/services/workflow.service';
             <p class="text-slate-500 mt-2">{{ formConfig()?.config?.description }}</p>
           </div>
 
-          <form #f="ngForm" (ngSubmit)="onSubmit()" class="flex flex-col gap-4">
+          <form #f="ngForm" novalidate (ngSubmit)="onSubmit(f)" class="flex flex-col gap-4">
             <ng-container *ngFor="let field of formConfig()?.config?.fields">
               <div *ngIf="!['title', 'description', 'successMsg'].includes(field.type)" class="field-group">
                 <label [for]="field.name" class="block text-sm font-semibold text-slate-700 mb-1 ml-1">
@@ -52,35 +52,69 @@ import { WorkflowService } from '../../../core/services/workflow.service';
                 </label>
 
                 <ng-container [ngSwitch]="field.type">
-                  <textarea *ngSwitchCase="'textarea'" 
-                    pTextarea 
-                    [(ngModel)]="formData[field.name]" 
-                    [name]="field.name"
-                    [required]="field.required"
-                    rows="4"
-                    class="w-full premium-input"
-                    [placeholder]="'Escribe aquí...'"></textarea>
+                  <ng-container *ngSwitchCase="'textarea'">
+                    <textarea
+                      #fieldModel="ngModel"
+                      pTextarea
+                      [(ngModel)]="formData[field.name]"
+                      [name]="field.name"
+                      [required]="field.required"
+                      rows="4"
+                      class="w-full premium-input"
+                      [class.input-invalid]="showError(fieldModel)"
+                      placeholder="Escribe aqui..."
+                    ></textarea>
+                    <small *ngIf="showError(fieldModel)" class="field-error">Este campo es obligatorio.</small>
+                  </ng-container>
 
-                  <input *ngSwitchDefault 
-                    [type]="field.type" 
-                    pInputText 
-                    [(ngModel)]="formData[field.name]" 
-                    [name]="field.name"
-                    [required]="field.required"
-                    class="w-full premium-input"
-                    [placeholder]="'Tu respuesta'"/>
+                  <ng-container *ngSwitchCase="'email'">
+                    <input
+                      #fieldModel="ngModel"
+                      id="{{ field.name }}"
+                      type="email"
+                      pInputText
+                      [(ngModel)]="formData[field.name]"
+                      [name]="field.name"
+                      [required]="field.required"
+                      email
+                      class="w-full premium-input"
+                      [class.input-invalid]="showError(fieldModel)"
+                      placeholder="correo@ejemplo.com"
+                    />
+                    <small *ngIf="showError(fieldModel)" class="field-error">
+                      <span *ngIf="fieldModel.errors?.['required']">El correo es obligatorio.</span>
+                      <span *ngIf="fieldModel.errors?.['email']">Ingresa un correo valido.</span>
+                    </small>
+                  </ng-container>
+
+                  <ng-container *ngSwitchDefault>
+                    <input
+                      #fieldModel="ngModel"
+                      [id]="field.name"
+                      [type]="getInputType(field.type)"
+                      pInputText
+                      [(ngModel)]="formData[field.name]"
+                      [name]="field.name"
+                      [required]="field.required"
+                      class="w-full premium-input"
+                      [class.input-invalid]="showError(fieldModel)"
+                      placeholder="Tu respuesta"
+                    />
+                    <small *ngIf="showError(fieldModel)" class="field-error">Este campo es obligatorio.</small>
+                  </ng-container>
                 </ng-container>
               </div>
             </ng-container>
 
             <div class="mt-6">
-              <p-button 
-                type="submit" 
-                label="Enviar Respuesta" 
-                icon="pi pi-send" 
+              <p-button
+                type="submit"
+                label="Enviar Respuesta"
+                icon="pi pi-send"
                 [loading]="submitting()"
                 styleClass="w-full premium-button"
-                [disabled]="!f.valid">
+                [disabled]="!f.valid || submitting()"
+              >
               </p-button>
             </div>
           </form>
@@ -95,7 +129,7 @@ import { WorkflowService } from '../../../core/services/workflow.service';
             <div class="success-icon mb-4">
               <i class="pi pi-check-circle text-6xl text-green-500"></i>
             </div>
-            <h2 class="text-2xl font-bold text-slate-800 mb-2">¡Enviado con éxito!</h2>
+            <h2 class="text-2xl font-bold text-slate-800 mb-2">Enviado con exito</h2>
             <p class="text-slate-600">{{ formConfig()?.config?.successMsg || 'Gracias por tu respuesta.' }}</p>
             <p-button label="Volver a empezar" (click)="resetForm()" [text]="true" class="mt-4"></p-button>
           </div>
@@ -182,6 +216,20 @@ import { WorkflowService } from '../../../core/services/workflow.service';
       box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.1);
     }
 
+    .input-invalid {
+      border-color: #ef4444 !important;
+      box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.08);
+    }
+
+    .field-error {
+      display: block;
+      margin-top: 0.35rem;
+      margin-left: 0.3rem;
+      color: #dc2626;
+      font-size: 0.78rem;
+      font-weight: 500;
+    }
+
     :host ::ng-deep .premium-button {
       background: linear-gradient(to right, #6366f1, #8b5cf6);
       border: none;
@@ -198,7 +246,10 @@ import { WorkflowService } from '../../../core/services/workflow.service';
 
     .loading-overlay {
       position: absolute;
-      top: 0; left: 0; width: 100%; height: 100%;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
       background: rgba(255, 255, 255, 0.7);
       display: flex;
       justify-content: center;
@@ -227,17 +278,17 @@ export class PublicFormComponent implements OnInit {
   private workflowService = inject(WorkflowService);
   private messageService = inject(MessageService);
 
-  @Input() nodeId?: string; // Nuevo Input para modo modal
-  @Input() previewConfig?: any; // Vista Previa
+  @Input() nodeId?: string;
+  @Input() previewConfig?: any;
 
   formConfig = signal<any>(null);
   loading = signal(true);
   submitting = signal(false);
   submitted = signal(false);
+  submitAttempted = signal(false);
   formData: Record<string, any> = {};
 
   ngOnInit() {
-    // Si viene configuración directa (vista previa local), la usamos
     console.log('previewConfig', this.previewConfig);
     if (this.previewConfig) {
       this.formConfig.set({
@@ -249,7 +300,6 @@ export class PublicFormComponent implements OnInit {
       return;
     }
 
-    // Si no viene por input, buscamos en la ruta
     const id = this.nodeId || this.route.snapshot.paramMap.get('nodeId');
     if (id) {
       this.loadFormConfig(id);
@@ -283,11 +333,40 @@ export class PublicFormComponent implements OnInit {
     });
   }
 
-  onSubmit() {
+  getInputType(fieldType: string): string {
+    if (fieldType === 'number' || fieldType === 'date') {
+      return fieldType;
+    }
+    return 'text';
+  }
+
+  showError(model: any): boolean {
+    return !!model && model.invalid && (model.touched || model.dirty || this.submitAttempted());
+  }
+
+  private markFormControlsAsTouched(form: NgForm) {
+    Object.values(form.controls).forEach(control => {
+      control.markAsTouched();
+      control.markAsDirty();
+    });
+  }
+
+  onSubmit(form: NgForm) {
     const nodeId = this.formConfig()?.id;
     if (!nodeId) return;
 
-    // Capturar executionId si estamos reanudando un flujo
+    this.submitAttempted.set(true);
+
+    if (form.invalid) {
+      this.markFormControlsAsTouched(form);
+      this.messageService.add({
+        severity: 'warn',
+        summary: 'Formulario invalido',
+        detail: 'Revisa los campos antes de enviar. El correo debe tener un formato valido.'
+      });
+      return;
+    }
+
     const executionId = this.route.snapshot.queryParamMap.get('executionId') || undefined;
 
     this.submitting.set(true);
@@ -309,6 +388,7 @@ export class PublicFormComponent implements OnInit {
 
   resetForm() {
     this.submitted.set(false);
+    this.submitAttempted.set(false);
     for (const key in this.formData) {
       this.formData[key] = '';
     }

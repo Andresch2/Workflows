@@ -9,6 +9,7 @@ export const NODE_LABELS: Record<WorkflowNodeType, string> = {
     [WorkflowNodeType.DELAY]: 'Delay',
     [WorkflowNodeType.FORM]: 'Formulario',
     [WorkflowNodeType.IF]: 'If / Else',
+    [WorkflowNodeType.CODE]: 'Code',
 };
 
 export const NODE_COLORS: Record<WorkflowNodeType, string> = {
@@ -20,6 +21,7 @@ export const NODE_COLORS: Record<WorkflowNodeType, string> = {
     [WorkflowNodeType.DELAY]: '#475569',
     [WorkflowNodeType.FORM]: '#8b5cf6',
     [WorkflowNodeType.IF]: '#ec4899',
+    [WorkflowNodeType.CODE]: '#06b6d4',
 };
 
 export const NODE_ICONS: Record<WorkflowNodeType, string> = {
@@ -31,6 +33,7 @@ export const NODE_ICONS: Record<WorkflowNodeType, string> = {
     [WorkflowNodeType.DELAY]: 'pi-clock',
     [WorkflowNodeType.FORM]: 'pi-list',
     [WorkflowNodeType.IF]: 'pi-code',
+    [WorkflowNodeType.CODE]: 'pi-file-edit',
 };
 
 export function getNodeLabel(type: WorkflowNodeType): string {

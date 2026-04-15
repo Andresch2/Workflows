@@ -1,12 +1,12 @@
-import { CommonModule } from '@angular/common';
+﻿import { CommonModule } from '@angular/common';
 import { Component, computed, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { MessageService } from 'primeng/api';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
-import { TextareaModule } from 'primeng/textarea';
 import { TagModule } from 'primeng/tag';
+import { TextareaModule } from 'primeng/textarea';
 import { ToastModule } from 'primeng/toast';
 import {
     CreateWorkflowNodeDto,
@@ -20,6 +20,12 @@ import { WorkflowCanvasComponent } from './components/workflow-canvas/workflow-c
 import { WorkflowPropertiesComponent } from './components/workflow-properties/workflow-properties.component';
 import { WorkflowToolbarComponent } from './components/workflow-toolbar/workflow-toolbar.component';
 import { ToolboxItem, WorkflowToolboxComponent } from './components/workflow-toolbox/workflow-toolbox.component';
+
+type CanvasDropEvent = {
+    event: DragEvent;
+    x: number;
+    y: number;
+};
 
 @Component({
     selector: 'app-workflow-editor',
@@ -169,15 +175,12 @@ export class WorkflowEditorComponent implements OnInit {
         event.preventDefault();
     }
 
-    onCanvasDrop(event: DragEvent) {
-        event.preventDefault();
-        const type = event.dataTransfer?.getData('node-type') as WorkflowNodeType;
+    onCanvasDrop(payload: CanvasDropEvent) {
+        payload.event.preventDefault();
+        const type = payload.event.dataTransfer?.getData('node-type') as WorkflowNodeType;
         if (!type) return;
-
-        const canvasEl = (event.currentTarget as HTMLElement);
-        const rect = canvasEl.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
+        const x = payload.x;
+        const y = payload.y;
 
         if (type === WorkflowNodeType.TRIGGER) {
             const hasTrigger = this.nodes().some(n => n.type === WorkflowNodeType.TRIGGER);

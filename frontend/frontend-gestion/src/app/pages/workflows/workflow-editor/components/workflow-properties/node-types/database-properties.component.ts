@@ -111,8 +111,6 @@ export interface TableRecord {
                 <i class="pi pi-info-circle" style="color: #38bdf8; margin-right: 0.25rem;"></i>
                 Escriba su valor fijo (Ej. "Mario") o interpole din\u00e1micamente usando
                 <code [innerText]="'{{ $json.campo }}'" style="background: #e0f2fe; color: #0369a1; padding: 0.1rem 0.35rem; border-radius: 3px; font-size: 0.7rem; font-weight: 600;"></code>
-                o
-                <code [innerText]="'{{ $node.MI_NODO.data.campo }}'" style="background: #e0f2fe; color: #0369a1; padding: 0.1rem 0.35rem; border-radius: 3px; font-size: 0.7rem; font-weight: 600;"></code>
             </div>
 
             <!-- Table header -->
@@ -215,12 +213,10 @@ export interface TableRecord {
             } @else {
             <label>Respuesta</label>
             <textarea
-                pTextarea
                 [value]="actionTestResult()!.raw | json"
                 readonly
                 rows="6"
-                class="w-full"
-                style="background-color: #1e293b; color: #e2e8f0; font-family: monospace; font-size: 0.82rem; border-radius: 6px;"
+                class="json-editor"
             ></textarea>
             }
         </div>

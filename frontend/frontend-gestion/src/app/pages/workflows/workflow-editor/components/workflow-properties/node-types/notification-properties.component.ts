@@ -61,7 +61,7 @@ import { WorkflowService } from '../../../../../../core/services/workflow.servic
                 pInputText
                 [ngModel]="notifUrl()"
                 (ngModelChange)="notifUrl.set($event || ''); onFieldChange()"
-                placeholder="https://hooks.slack.com/services/..."
+                placeholder="Agrega una url"
                 class="w-full"
             />
         </div>

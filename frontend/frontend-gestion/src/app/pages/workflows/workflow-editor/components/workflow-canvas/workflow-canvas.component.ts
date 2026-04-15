@@ -3,6 +3,12 @@ import { Component, ElementRef, EventEmitter, HostListener, Input, Output, ViewC
 import { EditorNode, WorkflowConnection, WorkflowNodeType } from '../../../../../core/models/workflow.model';
 import { getNodeColor, getNodeIcon, getNodeLabel } from '../../utils/workflow-node.utils';
 
+type CanvasDropEvent = {
+    event: DragEvent;
+    x: number;
+    y: number;
+};
+
 @Component({
     selector: 'app-workflow-canvas',
     standalone: true,
@@ -18,7 +24,7 @@ export class WorkflowCanvasComponent {
     @Input() selectedNodeId: string | undefined;
 
     @Output() canvasDragOver = new EventEmitter<DragEvent>();
-    @Output() canvasDrop = new EventEmitter<DragEvent>();
+    @Output() canvasDrop = new EventEmitter<CanvasDropEvent>();
     @Output() nodeSelected = new EventEmitter<EditorNode>();
     @Output() canvasClicked = new EventEmitter<void>();
     @Output() connectionStarted = new EventEmitter<{ node: EditorNode, handle?: string }>();
@@ -32,6 +38,17 @@ export class WorkflowCanvasComponent {
     dragNodeId: string | null = null;
     dragOffsetX = 0;
     dragOffsetY = 0;
+    private dragStartClientX = 0;
+    private dragStartClientY = 0;
+    private didDrag = false;
+    private readonly dragThreshold = 4;
+    private suppressNextClick = false;
+
+    zoom = 1;
+    readonly minZoom = 0.4;
+    readonly maxZoom = 2;
+    private readonly nodeWidth = 180;
+    private readonly nodeHeight = 120;
 
     onCanvasDragOver(event: DragEvent) {
         event.preventDefault();
@@ -40,16 +57,35 @@ export class WorkflowCanvasComponent {
 
     onCanvasDrop(event: DragEvent) {
         event.preventDefault();
-        this.canvasDrop.emit(event);
+        const canvas = this.canvasRef?.nativeElement;
+        if (!canvas) {
+            this.canvasDrop.emit({ event, x: 0, y: 0 });
+            return;
+        }
+
+        const rect = canvas.getBoundingClientRect();
+        const x = (event.clientX - rect.left + canvas.scrollLeft) / this.zoom;
+        const y = (event.clientY - rect.top + canvas.scrollTop) / this.zoom;
+        this.canvasDrop.emit({ event, x, y });
     }
 
     onNodeMouseDown(event: MouseEvent, node: EditorNode) {
         if (this.connecting) return;
         event.stopPropagation();
+        const canvas = this.canvasRef?.nativeElement;
+        if (!canvas) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const pointerX = (event.clientX - rect.left + canvas.scrollLeft) / this.zoom;
+        const pointerY = (event.clientY - rect.top + canvas.scrollTop) / this.zoom;
+
         this.dragging = true;
         this.dragNodeId = node.id;
-        this.dragOffsetX = event.offsetX;
-        this.dragOffsetY = event.offsetY;
+        this.dragOffsetX = pointerX - node.x;
+        this.dragOffsetY = pointerY - node.y;
+        this.dragStartClientX = event.clientX;
+        this.dragStartClientY = event.clientY;
+        this.didDrag = false;
     }
 
     @HostListener('document:mousemove', ['$event'])
@@ -60,19 +96,39 @@ export class WorkflowCanvasComponent {
         if (!canvas) return;
 
         const rect = canvas.getBoundingClientRect();
-        const x = event.clientX - rect.left - this.dragOffsetX + 60;
-        const y = event.clientY - rect.top - this.dragOffsetY + 20;
+        const pointerX = (event.clientX - rect.left + canvas.scrollLeft) / this.zoom;
+        const pointerY = (event.clientY - rect.top + canvas.scrollTop) / this.zoom;
+        const x = pointerX - this.dragOffsetX;
+        const y = pointerY - this.dragOffsetY;
+
+        if (!this.didDrag) {
+            const deltaX = Math.abs(event.clientX - this.dragStartClientX);
+            const deltaY = Math.abs(event.clientY - this.dragStartClientY);
+            this.didDrag = deltaX > this.dragThreshold || deltaY > this.dragThreshold;
+        }
 
         this.nodeMoved.emit({ id: this.dragNodeId, x: Math.max(0, x), y: Math.max(0, y) });
     }
 
     @HostListener('document:mouseup')
     onMouseUp() {
+        if (this.dragging && this.didDrag) {
+            // Evita que el click de mouseup tras arrastrar abra el panel de propiedades.
+            this.suppressNextClick = true;
+            setTimeout(() => {
+                this.suppressNextClick = false;
+            }, 0);
+        }
         this.dragging = false;
         this.dragNodeId = null;
+        this.didDrag = false;
     }
 
     onNodeClick(event: MouseEvent, node: EditorNode) {
+        if (this.suppressNextClick) {
+            event.stopPropagation();
+            return;
+        }
         event.stopPropagation();
         this.nodeSelected.emit(node);
     }
@@ -187,5 +243,62 @@ export class WorkflowCanvasComponent {
 
     getNodeColor(type: WorkflowNodeType): string {
         return getNodeColor(type);
+    }
+
+    get zoomPercent(): number {
+        return Math.round(this.zoom * 100);
+    }
+
+    get canvasWidth(): number {
+        const maxX = this.nodes.reduce((acc, node) => Math.max(acc, node.x + this.nodeWidth + 140), 1200);
+        return maxX;
+    }
+
+    get canvasHeight(): number {
+        const maxY = this.nodes.reduce((acc, node) => Math.max(acc, node.y + this.nodeHeight + 180), 800);
+        return maxY;
+    }
+
+    zoomIn() {
+        this.setZoom(this.zoom + 0.1);
+    }
+
+    zoomOut() {
+        this.setZoom(this.zoom - 0.1);
+    }
+
+    resetZoom() {
+        this.setZoom(1);
+    }
+
+    fitToScreen() {
+        const canvas = this.canvasRef?.nativeElement;
+        if (!canvas || this.nodes.length === 0) {
+            this.resetZoom();
+            return;
+        }
+
+        const minX = this.nodes.reduce((acc, node) => Math.min(acc, node.x), this.nodes[0].x);
+        const minY = this.nodes.reduce((acc, node) => Math.min(acc, node.y), this.nodes[0].y);
+        const maxX = this.nodes.reduce((acc, node) => Math.max(acc, node.x + this.nodeWidth), this.nodes[0].x + this.nodeWidth);
+        const maxY = this.nodes.reduce((acc, node) => Math.max(acc, node.y + this.nodeHeight), this.nodes[0].y + this.nodeHeight);
+
+        const boundsWidth = Math.max(1, maxX - minX + 120);
+        const boundsHeight = Math.max(1, maxY - minY + 120);
+
+        const availableWidth = Math.max(1, canvas.clientWidth - 40);
+        const availableHeight = Math.max(1, canvas.clientHeight - 40);
+
+        const nextZoom = Math.min(availableWidth / boundsWidth, availableHeight / boundsHeight);
+        this.setZoom(nextZoom);
+
+        // Llevar el inicio al área visible tras ajustar.
+        canvas.scrollLeft = Math.max(0, (minX - 40) * this.zoom);
+        canvas.scrollTop = Math.max(0, (minY - 40) * this.zoom);
+    }
+
+    private setZoom(next: number) {
+        const clamped = Math.min(this.maxZoom, Math.max(this.minZoom, next));
+        this.zoom = Number(clamped.toFixed(2));
     }
 }

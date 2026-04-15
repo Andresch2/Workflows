@@ -28,6 +28,7 @@ import {
     getNodeColor as sharedGetNodeColor,
     getNodeLabel as sharedGetNodeLabel,
 } from '../../utils/workflow-node.utils';
+import { CodePropertiesComponent } from './node-types/code-properties.component';
 import { DatabasePropertiesComponent } from './node-types/database-properties.component';
 import { DelayPropertiesComponent } from './node-types/delay-properties.component';
 import { FormPropertiesComponent } from './node-types/form-properties.component';
@@ -57,6 +58,7 @@ type PointerPosition = {
         TagModule,
         TextareaModule,
         TreeModule,
+        CodePropertiesComponent,
         HttpPropertiesComponent,
         DatabasePropertiesComponent,
         DelayPropertiesComponent,

@@ -1,15 +1,42 @@
 <div class="toolbox">
     <h4>Nodos</h4>
-    @for (item of toolboxItems; track item.type) {
-    <div class="toolbox-item" [draggable]="true" (dragstart)="onDragStart($event, item)"
-        [style.border-left-color]="item.color">
-        <i class="pi {{ item.icon }}" [style.color]="item.color"></i>
-        <div class="toolbox-item-info">
-            <span class="toolbox-item-label">{{ item.label }}</span>
-            <span class="toolbox-item-desc">{{ item.description }}</span>
+
+    <div class="toolbox-list">
+        @for (category of toolboxCategories; track category.key) {
+        <div class="toolbox-category">
+            <div
+                class="toolbox-category-toggle"
+                role="button"
+                tabindex="0"
+                (click)="toggleCategory(category.key)"
+                [attr.aria-expanded]="isCategoryExpanded(category.key)"
+                (keydown.enter)="toggleCategory(category.key)"
+                (keydown.space)="toggleCategory(category.key)"
+            >
+                <span class="toolbox-category-title">{{ category.label }}</span>
+                <span class="toolbox-category-meta">
+                    <span class="toolbox-category-count">{{ category.items.length }}</span>
+                    <i class="pi toolbox-category-arrow"
+                        [ngClass]="isCategoryExpanded(category.key) ? 'pi-chevron-down' : 'pi-chevron-right'"></i>
+                </span>
+            </div>
+
+            <div class="toolbox-category-items" [class.is-collapsed]="!isCategoryExpanded(category.key)">
+                @for (item of category.items; track item.type) {
+                <div class="toolbox-item" [draggable]="true" (dragstart)="onDragStart($event, item)"
+                    [style.border-left-color]="item.color">
+                    <i class="pi {{ item.icon }}" [style.color]="item.color"></i>
+                    <div class="toolbox-item-info">
+                        <span class="toolbox-item-label">{{ item.label }}</span>
+                        <span class="toolbox-item-desc">{{ item.description }}</span>
+                    </div>
+                </div>
+                }
+            </div>
         </div>
+        }
     </div>
-    }
+
     <div class="toolbox-hint">
         <i class="pi pi-info-circle"></i>
         <span>Arrastra un nodo al canvas. Haz clic en el conector inferior para conectar.</span>

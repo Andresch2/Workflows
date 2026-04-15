@@ -7,4 +7,5 @@ export enum WorkflowNodeType {
   NOTIFICATION = 'NOTIFICATION',
   FORM = 'FORM',
   IF = 'IF',
+  CODE = 'CODE',
 }

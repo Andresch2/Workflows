@@ -46,26 +46,28 @@ import { WorkflowService } from '../../../../../../core/services/workflow.servic
         </div>
 
         @if (activeTab() === 'headers') {
-            <textarea pTextarea [ngModel]="httpHeadersRaw()"
+            <textarea [ngModel]="httpHeadersRaw()"
                 (ngModelChange)="httpHeadersRaw.set($event); emitConfig()"
-                rows="6" class="w-full" style="font-family: monospace;"
+                rows="6" class="json-editor"
                 placeholder='{"Authorization":"Bearer ..."}'></textarea>
         }
 
         @if (activeTab() === 'body') {
-            <textarea pTextarea [ngModel]="httpBodyRaw()"
+            <textarea [ngModel]="httpBodyRaw()"
                 (ngModelChange)="httpBodyRaw.set($event); emitConfig()"
-                rows="10" class="w-full" style="font-family: monospace;"
+                rows="10" class="json-editor"
                 [placeholder]="bodyPlaceholder"></textarea>
         }
 
         @if (activeTab() === 'expected') {
-            <textarea pTextarea [ngModel]="expectedResponseRaw()"
+            <textarea [ngModel]="expectedResponseRaw()"
                 (ngModelChange)="onExpectedResponseChange($event)"
-                rows="10" class="w-full" style="font-family: monospace;"
+                rows="10" class="json-editor"
                 placeholder='{"ok": true, "id": 1}'></textarea>
             @if (!expectedResponseValid()) {
-                <small style="color:#ef4444;">Expected Response inválido</small>
+                <small class="error-text">
+                    <i class="pi pi-exclamation-circle text-[10px]"></i> Expected Response inválido
+                </small>
             }
         }
 

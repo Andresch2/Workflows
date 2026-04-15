@@ -4,6 +4,7 @@ import { WorkflowNode } from '../domain/workflow-node';
 import { WorkflowNodeType } from '../domain/workflow-node-type.enum';
 import { WorkflowConnectionRepository } from '../infrastructure/persistence/workflow-connection.repository';
 import { WorkflowNodeRepository } from '../infrastructure/persistence/workflow-node.repository';
+import { CodeHandler } from './handlers/code.handler';
 import { DatabaseHandler } from './handlers/database.handler';
 import { DelayHandler } from './handlers/delay.handler';
 import { FormHandler } from './handlers/form.handler';
@@ -26,6 +27,7 @@ export class WorkflowEngineService {
     private readonly notificationHandler: NotificationHandler,
     private readonly formHandler: FormHandler,
     private readonly ifHandler: IfHandler,
+    private readonly codeHandler: CodeHandler,
   ) {
     this.handlers.set(WorkflowNodeType.HTTP, this.httpHandler);
     this.handlers.set(WorkflowNodeType.DATABASE, this.databaseHandler);
@@ -33,6 +35,7 @@ export class WorkflowEngineService {
     this.handlers.set(WorkflowNodeType.NOTIFICATION, this.notificationHandler);
     this.handlers.set(WorkflowNodeType.FORM, this.formHandler);
     this.handlers.set(WorkflowNodeType.IF, this.ifHandler);
+    this.handlers.set(WorkflowNodeType.CODE, this.codeHandler);
   }
 
   async executeWorkflow(

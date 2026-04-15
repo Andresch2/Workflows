@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { CodeHandler } from './engine/handlers/code.handler';
 import { DatabaseHandler } from './engine/handlers/database.handler';
 import { DelayHandler } from './engine/handlers/delay.handler';
 import { FormHandler } from './engine/handlers/form.handler';
@@ -32,6 +33,7 @@ import { WorkflowDatabaseConfig } from './infrastructure/persistence/relational/
     NotificationHandler,
     FormHandler,
     IfHandler,
+    CodeHandler,
     TemplateUtil,
     PendingFormStore,
   ],
