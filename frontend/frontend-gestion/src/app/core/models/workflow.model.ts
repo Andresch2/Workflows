@@ -102,9 +102,13 @@ export interface CreateWorkflowConnectionDto {
     targetHandle?: string | null;
 }
 
+export type NodeExecutionStatus = 'idle' | 'running' | 'success' | 'error';
+
 export interface EditorNode extends WorkflowNode {
     selected?: boolean;
     active?: boolean;
+    executionStatus?: NodeExecutionStatus;
+    errorMessage?: string;
 }
 
 export interface EditorConnection extends WorkflowConnection {

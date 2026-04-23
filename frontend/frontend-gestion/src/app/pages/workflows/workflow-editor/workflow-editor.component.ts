@@ -1,4 +1,4 @@
-﻿import { CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { Component, computed, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -525,28 +525,91 @@ export class WorkflowEditorComponent implements OnInit {
             this.messageService.add({ severity: 'warn', summary: 'Atención', detail: 'No hay nodos para simular' });
             return;
         }
+
+        let payload = {};
+        try {
+            payload = JSON.parse(this.executionPayload() || '{}');
+        } catch (e) {
+            this.messageService.add({ severity: 'warn', summary: 'Aviso', detail: 'Payload JSON inválido, usando {}' });
+        }
+
+        // Reset all states
+        this.nodes.update(nodes => nodes.map(n => ({ 
+            ...n, 
+            active: false, 
+            executionStatus: 'idle', 
+            errorMessage: undefined 
+        })));
+
         this.simulating.set(true);
-        this.simulationIndex.set(0);
-        this.highlightNode(0);
+        this.messageService.add({ severity: 'info', summary: 'Simulando', detail: 'Ejecutando en el backend...' });
+
+        // Ejecución Real Sincrónica
+        this.workflowService.executeWorkflowSync(this.workflowId, payload).subscribe({
+            next: (res: any) => {
+                const results = res.results || {};
+                this.simulationIndex.set(0);
+                this.highlightNodeReal(0, order, results);
+            },
+            error: (err) => {
+                this.simulating.set(false);
+                this.messageService.add({ severity: 'error', summary: 'Error', detail: 'Falló la comunicación con el motor' });
+            }
+        });
     }
 
-    private highlightNode(index: number) {
-        const order = this.simulationOrder();
+    private highlightNodeReal(index: number, order: EditorNode[], executionResults: Record<string, any>) {
         if (index >= order.length) {
             this.nodes.update(nodes => nodes.map(n => ({ ...n, active: false })));
             this.simulating.set(false);
-            this.messageService.add({ severity: 'success', summary: 'Simulación', detail: 'Simulación completada' });
+            this.messageService.add({ severity: 'success', summary: 'Simulación', detail: 'Simulación completada con éxito' });
             return;
         }
+
         const currentId = order[index].id;
-        this.nodes.update(nodes => nodes.map(n => ({ ...n, active: n.id === currentId })));
+        const nodeResult = executionResults[currentId];
+
+        // Si el backend no ejecutó este nodo (ej. la rama IF no pasó por aquí o falló antes)
+        if (!nodeResult) {
+            // Saltamos silenciosamente al siguiente nodo para la animación
+            this.highlightNodeReal(index + 1, order, executionResults);
+            return;
+        }
+        
+        // Mark as active (running)
+        this.nodes.update(nodes => nodes.map(n => ({ 
+            ...n, 
+            active: n.id === currentId,
+            executionStatus: n.id === currentId ? 'running' : n.executionStatus
+        })));
+
         this.simulationIndex.set(index);
-        setTimeout(() => this.highlightNode(index + 1), 1200);
+
+        setTimeout(() => {
+            const status = nodeResult.status === 'failed' ? 'error' : 'success';
+            const errorMsg = nodeResult.error;
+
+            this.nodes.update(nodes => nodes.map(n => n.id === currentId ? { 
+                ...n, 
+                active: false,
+                executionStatus: status,
+                errorMessage: errorMsg
+            } : n));
+
+            if (status === 'error') {
+                this.simulating.set(false);
+                this.nodes.update(nodes => nodes.map(n => ({ ...n, active: false })));
+                this.messageService.add({ severity: 'error', summary: 'Error en Nodo', detail: errorMsg || 'Falló la ejecución' });
+                return; // Stop simulation early on error
+            }
+
+            this.highlightNodeReal(index + 1, order, executionResults);
+        }, 800); // 800ms por nodo para la animación
     }
 
     stopSimulation() {
         this.simulating.set(false);
-        this.nodes.update(nodes => nodes.map(n => ({ ...n, active: false })));
+        this.nodes.update(nodes => nodes.map(n => ({ ...n, active: false, executionStatus: 'idle', errorMessage: undefined })));
     }
 
     realExecuteDirect() {

@@ -1,4 +1,4 @@
-﻿<div #editorCanvas class="editor-canvas" [class.connecting-mode]="connecting" (dragover)="onCanvasDragOver($event)"
+<div #editorCanvas class="editor-canvas" [class.connecting-mode]="connecting" (dragover)="onCanvasDragOver($event)"
     (drop)="onCanvasDrop($event)" (click)="onCanvasClick()">
 
     <div class="canvas-controls" (click)="$event.stopPropagation()">
@@ -20,8 +20,16 @@
             <div class="workflow-node" [class.selected]="node.selected" [class.active]="node.active"
                 [class.connecting-source]="connecting && connectingFromId === node.id"
                 [class.connecting-target]="connecting && connectingFromId !== node.id"
+                [class.node-success]="node.executionStatus === 'success'"
+                [class.node-error]="node.executionStatus === 'error'"
                 [ngClass]="'node-' + node.type.toLowerCase()" [style.left.px]="node.x" [style.top.px]="node.y"
                 (mousedown)="onNodeMouseDown($event, node)" (click)="onNodeClick($event, node)">
+
+                @if (node.executionStatus === 'error' && node.errorMessage) {
+                <div class="node-error-badge" [title]="node.errorMessage">
+                    <i class="pi pi-exclamation-triangle"></i> Error
+                </div>
+                }
 
                 <div class="node-card">
                     <div class="node-header">
