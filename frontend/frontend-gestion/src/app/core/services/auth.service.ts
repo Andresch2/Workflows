@@ -3,13 +3,14 @@ import { Injectable, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, finalize, Observable, of, tap } from 'rxjs';
 import { LoginRequest, LoginResponse, User } from '../models/auth.model';
+import { environment } from '../../../environments/environment';
 import { RoleEnum } from '../models/role.enum';
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
-  private readonly API_URL = 'http://localhost:3000/api/v1';
+  private readonly API_URL = environment.apiUrl;
   private readonly TOKEN_KEY = 'auth_token';
   private readonly REFRESH_TOKEN_KEY = 'refresh_token';
 
@@ -73,6 +74,28 @@ export class AuthService {
     return localStorage.getItem(this.TOKEN_KEY);
   }
 
+  getRefreshToken(): string | null {
+    return localStorage.getItem(this.REFRESH_TOKEN_KEY);
+  }
+
+  refreshToken(): Observable<LoginResponse> {
+    const refreshToken = this.getRefreshToken();
+    return this.http.post<LoginResponse>(`${this.API_URL}/auth/refresh`, {}, {
+      headers: {
+        'Authorization': `Bearer ${refreshToken}`
+      }
+    }).pipe(
+      tap(response => {
+        this.setSession(response);
+      }),
+      catchError(error => {
+        // No redirigir inmediatamente, dejar que el interceptor o el componente decidan
+        this.clearSession(false);
+        throw error;
+      })
+    );
+  }
+
   private setSession(authResult: LoginResponse): void {
     localStorage.setItem(this.TOKEN_KEY, authResult.token);
     localStorage.setItem(this.REFRESH_TOKEN_KEY, authResult.refreshToken);
@@ -93,7 +116,15 @@ export class AuthService {
       },
       error: (error) => {
         if (error?.status === 401 || error?.status === 403) {
-          this.clearSession();
+          const refreshToken = this.getRefreshToken();
+          if (refreshToken) {
+            this.refreshToken().subscribe({
+              next: () => this.checkAuth(),
+              error: () => this.clearSession()
+            });
+          } else {
+            this.clearSession();
+          }
           return;
         }
 

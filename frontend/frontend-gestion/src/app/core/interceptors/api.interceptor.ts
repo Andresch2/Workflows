@@ -1,6 +1,6 @@
-import { HttpEvent, HttpHandlerFn, HttpRequest } from '@angular/common/http';
+import { HttpErrorResponse, HttpEvent, HttpHandlerFn, HttpRequest } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { catchError, Observable, switchMap, throwError } from 'rxjs';
 import { AuthService } from '../services/auth.service';
 
 export function authInterceptor(
@@ -10,14 +10,33 @@ export function authInterceptor(
   const authService = inject(AuthService);
   const token = authService.getToken();
 
+  let request = req;
   if (token) {
-    const clonedRequest = req.clone({
+    request = req.clone({
       setHeaders: {
         Authorization: `Bearer ${token}`
       }
     });
-    return next(clonedRequest);
   }
 
-  return next(req);
+  return next(request).pipe(
+    catchError((error: HttpErrorResponse) => {
+      if (error.status === 401 && !req.url.includes('/auth/refresh')) {
+        return authService.refreshToken().pipe(
+          switchMap((response) => {
+            const newRequest = req.clone({
+              setHeaders: {
+                Authorization: `Bearer ${response.token}`
+              }
+            });
+            return next(newRequest);
+          }),
+          catchError((refreshError) => {
+            return throwError(() => refreshError);
+          })
+        );
+      }
+      return throwError(() => error);
+    })
+  );
 }

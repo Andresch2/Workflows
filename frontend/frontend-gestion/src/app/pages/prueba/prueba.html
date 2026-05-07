@@ -1,0 +1,7 @@
+<p>prueba works!</p>
+
+<div id="caja" [class.activada]="estaActivado">
+  Estado: {{ estaActivado ? 'ENCENDIDO' : 'APAGADO' }}
+</div>
+
+<button id="btn-toggle" (click)="toggle()">Alternar</button>

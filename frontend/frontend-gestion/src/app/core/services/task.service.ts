@@ -4,12 +4,13 @@ import { Observable } from 'rxjs';
 import { PaginatedResponse } from '../models/project.model';
 import { CreateTaskDto, Task, UpdateTaskDto } from '../models/task.model';
 
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class TaskService {
-  private readonly API_URL = 'http://localhost:3000/api/v1';
+  private readonly API_URL = environment.apiUrl;
 
   constructor(private http: HttpClient) { }
 
