@@ -28,6 +28,7 @@ export class WorkflowToolbarComponent {
     @Output() realExecute = new EventEmitter<void>();
     @Output() executeWithParams = new EventEmitter<void>();
     @Output() saveAll = new EventEmitter<void>();
+    @Output() viewHistory = new EventEmitter<void>();
 
     executionItems: MenuItem[] = [
         {

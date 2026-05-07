@@ -11,6 +11,7 @@ import {
     Workflow,
     WorkflowConnection,
     WorkflowNode,
+    WorkflowExecution,
 } from '../models/workflow.model';
 
 @Injectable({ providedIn: 'root' })
@@ -135,5 +136,19 @@ export class WorkflowService {
 
     getLatestWebhookPayload(workflowId: string): Observable<any> {
         return this.http.get<any>(`${this.apiUrl}/webhook/${workflowId}/latest`);
+    }
+
+    // Historial de ejecuciones
+
+    getExecutions(workflowId: string, page = 1, limit = 10): Observable<{ data: WorkflowExecution[]; hasNextPage: boolean }> {
+        return this.http.get<{ data: WorkflowExecution[]; hasNextPage: boolean }>(`${this.apiUrl}/${workflowId}/executions?page=${page}&limit=${limit}`);
+    }
+
+    getExecutionById(id: string): Observable<WorkflowExecution> {
+        return this.http.get<WorkflowExecution>(`${this.apiUrl}/executions/${id}`);
+    }
+
+    clearExecutions(workflowId: string): Observable<any> {
+        return this.http.delete(`${this.apiUrl}/${workflowId}/executions`);
     }
 }

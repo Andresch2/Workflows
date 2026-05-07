@@ -104,6 +104,34 @@ export interface CreateWorkflowConnectionDto {
 
 export type NodeExecutionStatus = 'idle' | 'running' | 'success' | 'error';
 
+export interface NodeResult {
+    status: 'success' | 'failed' | 'passed';
+    nodeId: string;
+    nodeName: string;
+    type: WorkflowNodeType;
+    data: any;
+    error?: string;
+    meta?: any;
+}
+
+export interface WorkflowExecution {
+    id: string;
+    workflowId: string;
+    status: 'running' | 'completed' | 'failed';
+    triggerType: string;
+    payload: Record<string, any>;
+    results: Record<string, NodeResult>;
+    error?: string | null;
+    startedAt: string;
+    finishedAt?: string | null;
+}
+
+export interface NodeExecutionStatusInfo {
+    status: NodeExecutionStatus;
+    errorMessage?: string;
+    data?: any;
+}
+
 export interface EditorNode extends WorkflowNode {
     selected?: boolean;
     active?: boolean;

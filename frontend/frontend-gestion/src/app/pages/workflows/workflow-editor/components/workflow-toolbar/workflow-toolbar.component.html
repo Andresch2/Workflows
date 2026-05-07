@@ -17,6 +17,7 @@
         } @else {
         <p-button label="Detener" icon="pi pi-stop" severity="danger" (onClick)="stopSimulation.emit()" />
         }
+        <p-button label="Historial" icon="pi pi-history" severity="info" (onClick)="viewHistory.emit()" pTooltip="Ver ejecuciones pasadas" />
         <p-button label="Guardar" icon="pi pi-save" (onClick)="saveAll.emit()" [loading]="saving" />
     </div>
 </div>

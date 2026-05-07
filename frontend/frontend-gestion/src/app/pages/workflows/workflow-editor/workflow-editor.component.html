@@ -5,7 +5,7 @@
     <app-workflow-toolbar [workflow]="workflow()" [connecting]="connecting()" [simulating]="simulating()"
         [executing]="executing()" [saving]="saving()" (goBack)="goBack()" (cancelConnection)="cancelConnection()"
         (startSimulation)="startSimulation()" (stopSimulation)="stopSimulation()" (realExecute)="realExecuteDirect()"
-        (executeWithParams)="realExecuteWithParams()" (saveAll)="saveAll()">
+        (executeWithParams)="realExecuteWithParams()" (saveAll)="saveAll()" (viewHistory)="viewHistory()">
     </app-workflow-toolbar>
 
     <div class="editor-body">
@@ -50,6 +50,14 @@
             [loading]="executing()" />
     </ng-template>
 </p-dialog>
+
+<!-- Sidebar de Historial -->
+<p-drawer [(visible)]="showHistory" position="right" [style]="{width: '550px'}" [baseZIndex]="10000">
+    <app-workflow-history [workflowId]="workflowId" (onSelectExecution)="onSelectExecution($event)"
+        (onClose)="showHistory.set(false)">
+    </app-workflow-history>
+</p-drawer>
+
 
 <p-dialog header="Configurar Datos de Prueba" [(visible)]="showExecutionDialog" [modal]="true"
     [style]="{width: '500px'}" [draggable]="false" [resizable]="false">

@@ -1,2 +1,15 @@
 // All workflow editor styles have been moved to assets/workflow-editor.scss
 // This file is intentionally empty to stay within Angular's component style budget.
+
+.execution-info-panel {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    width: 320px;
+    z-index: 1000;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
+}

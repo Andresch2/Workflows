@@ -8,6 +8,10 @@ import { DialogModule } from 'primeng/dialog';
 import { TagModule } from 'primeng/tag';
 import { TextareaModule } from 'primeng/textarea';
 import { ToastModule } from 'primeng/toast';
+import { DrawerModule } from 'primeng/drawer';
+import { PanelModule } from 'primeng/panel';
+import { WorkflowHistoryComponent } from './components/workflow-history/workflow-history.component';
+import { WorkflowExecution } from '../../../core/models/workflow.model';
 import {
     CreateWorkflowNodeDto,
     EditorNode,
@@ -42,6 +46,9 @@ type CanvasDropEvent = {
         WorkflowToolboxComponent,
         WorkflowCanvasComponent,
         WorkflowToolbarComponent,
+        WorkflowHistoryComponent,
+        DrawerModule,
+        PanelModule
     ],
     providers: [MessageService],
     templateUrl: './workflow-editor.component.html',
@@ -62,6 +69,8 @@ export class WorkflowEditorComponent implements OnInit {
     simulationIndex = signal(0);
     showExecutionDialog = signal(false);
     executionPayload = signal('{}');
+    showHistory = signal(false);
+    selectedExecution = signal<WorkflowExecution | null>(null);
 
     // Ancestros del nodo seleccionado (basado en conexiones del grafo)
     availableAncestors = computed<EditorNode[]>(() => {
@@ -182,10 +191,15 @@ export class WorkflowEditorComponent implements OnInit {
         const x = payload.x;
         const y = payload.y;
 
-        if (type === WorkflowNodeType.TRIGGER) {
-            const hasTrigger = this.nodes().some(n => n.type === WorkflowNodeType.TRIGGER);
-            if (hasTrigger) {
-                this.messageService.add({ severity: 'warn', summary: 'Atención', detail: 'Solo puede haber un nodo Trigger (raíz)' });
+        if (type === WorkflowNodeType.TRIGGER || type === WorkflowNodeType.WEBHOOK) {
+            const hasExisting = this.nodes().some(n => n.type === type);
+            if (hasExisting) {
+                const label = type === WorkflowNodeType.WEBHOOK ? 'Webhook' : 'Trigger';
+                this.messageService.add({ 
+                    severity: 'warn', 
+                    summary: 'Atención', 
+                    detail: `Solo puede haber un nodo ${label} en el workflow` 
+                });
                 return;
             }
         }
@@ -607,25 +621,66 @@ export class WorkflowEditorComponent implements OnInit {
         }, 800); // 800ms por nodo para la animación
     }
 
+    // Historial
+    
+    viewHistory() {
+        this.showHistory.set(true);
+    }
+
+    onSelectExecution(execution: WorkflowExecution) {
+        this.selectedExecution.set(execution);
+        
+        // Reset nodes state
+        this.nodes.update(nodes => nodes.map(n => ({ 
+            ...n, 
+            active: false, 
+            executionStatus: 'idle', 
+            errorMessage: undefined 
+        })));
+
+        // "Play" the execution results onto the canvas
+        const results = execution.results || {};
+        const order = this.simulationOrder();
+        
+        this.simulating.set(true); // Usamos el flag de simulación para bloquear edición
+        this.playbackExecution(0, order, results);
+    }
+
+    private playbackExecution(index: number, order: EditorNode[], executionResults: Record<string, any>) {
+        if (index >= order.length) {
+            this.simulating.set(false);
+            return;
+        }
+
+        const currentId = order[index].id;
+        const nodeResult = executionResults[currentId];
+
+        if (!nodeResult) {
+            this.playbackExecution(index + 1, order, executionResults);
+            return;
+        }
+
+        const status = nodeResult.status === 'failed' ? 'error' : 'success';
+        
+        this.nodes.update(nodes => nodes.map(n => n.id === currentId ? { 
+            ...n, 
+            executionStatus: status,
+            errorMessage: nodeResult.error
+        } : n));
+
+        // En modo playback vamos más rápido
+        setTimeout(() => {
+            this.playbackExecution(index + 1, order, executionResults);
+        }, 300);
+    }
+
     stopSimulation() {
         this.simulating.set(false);
         this.nodes.update(nodes => nodes.map(n => ({ ...n, active: false, executionStatus: 'idle', errorMessage: undefined })));
     }
 
     realExecuteDirect() {
-        if (!this.workflowId) return;
-
-        this.executing.set(true);
-        this.workflowService.executeWorkflow(this.workflowId, {}).subscribe({
-            next: () => {
-                this.messageService.add({ severity: 'success', summary: 'Ejecución', detail: 'Evento enviado (Directo)' });
-                this.executing.set(false);
-            },
-            error: () => {
-                this.messageService.add({ severity: 'error', summary: 'Error', detail: 'No se pudo iniciar la ejecución' });
-                this.executing.set(false);
-            }
-        });
+        this.startSimulation();
     }
 
     realExecuteWithParams() {

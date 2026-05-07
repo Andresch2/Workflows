@@ -1,0 +1,115 @@
+<div class="history-container">
+    <!-- Header -->
+    <div class="flex align-items-center justify-content-between p-3 border-bottom-1 surface-border sticky top-0 z-2 shadow-sm" 
+         style="background: var(--surface-card)">
+        <div class="flex align-items-center gap-2">
+            <i class="pi pi-history text-primary text-xl"></i>
+            <h3 class="m-0 font-bold">Historial</h3>
+        </div>
+        <div class="flex gap-1">
+            <p-button icon="pi pi-refresh" [rounded]="true" [text]="true" (onClick)="loadExecutions()"
+                [loading]="loading()"></p-button>
+            <p-button icon="pi pi-trash" [rounded]="true" [text]="true" severity="danger" 
+                (onClick)="clearHistory()" pTooltip="Limpiar Historial" tooltipPosition="bottom"></p-button>
+            <p-button icon="pi pi-times" [rounded]="true" [text]="true" (onClick)="onClose.emit()"></p-button>
+        </div>
+    </div>
+
+    <!-- Main List -->
+    <div class="flex-grow-1 overflow-y-auto p-3" style="background: var(--surface-ground)">
+        @if (loading() && executions().length === 0) {
+            <div class="flex flex-column align-items-center justify-content-center p-5 opacity-50">
+                <i class="pi pi-spin pi-spinner text-3xl mb-2"></i>
+                <span>Cargando...</span>
+            </div>
+        } @else if (executions().length === 0) {
+            <div class="flex flex-column align-items-center justify-content-center p-5 opacity-50 text-center">
+                <i class="pi pi-info-circle text-3xl mb-2"></i>
+                <span>No hay ejecuciones</span>
+            </div>
+        } @else {
+            <div class="execution-list">
+                @for (execution of executions(); track execution.id) {
+                    <div class="execution-card shadow-sm cursor-pointer"
+                        [class.active-execution]="selectedId() === execution.id" (click)="selectExecution(execution)">
+
+                        <!-- Basic Info -->
+                        <div class="flex justify-content-between align-items-center mb-3">
+                            <div class="flex align-items-center gap-2">
+                                <i [class]="getTriggerIcon(execution.triggerType)" class="text-primary text-lg"></i>
+                                <span class="font-bold text-sm">{{ execution.triggerType | uppercase }}</span>
+                            </div>
+                            <p-tag [severity]="getStatusSeverity(execution.status)"
+                                [value]="execution.status.toUpperCase()" styleClass="text-[10px] px-2"></p-tag>
+                        </div>
+                        
+                        <div class="text-xs text-500 mb-3 flex align-items-center gap-2">
+                            <i class="pi pi-calendar"></i> {{ execution.startedAt | date:'medium' }}
+                        </div>
+
+                        <!-- Details Section (Shown when selected) -->
+                        @if (selectedId() === execution.id) {
+                            <div class="border-top-1 surface-border pt-4 mt-3">
+                                <div class="flex align-items-center gap-2 mb-4">
+                                    <i class="pi pi-sitemap text-primary"></i>
+                                    <h4 class="m-0 text-xs font-bold uppercase tracking-wider text-500">
+                                        Traza de Ejecución
+                                    </h4>
+                                </div>
+
+                                <p-accordion [value]="null">
+                                    @for (res of getNodeResults(execution.results); track res.id) {
+                                        <p-accordion-panel [value]="res.id" class="mb-3">
+                                            <p-accordion-header>
+                                                <div class="flex align-items-center gap-2 py-1">
+                                                    <i [class]="res.status === 'failed' ? 'pi pi-times-circle text-red-500' : 'pi pi-check-circle text-green-500'"></i>
+                                                    <span class="text-xs font-bold">{{ res.nodeName }}</span>
+                                                </div>
+                                            </p-accordion-header>
+
+                                            <p-accordion-content>
+                                                <div class="flex flex-column gap-4 pt-2">
+                                                    @if (res.data) {
+                                                        <div class="flex flex-column gap-2">
+                                                            <span class="text-[10px] font-bold text-500 uppercase">Salida:</span>
+                                                            <div class="relative json-container">
+                                                                <pre>{{ formatJson(res.data) }}</pre>
+                                                                <p-button icon="pi pi-copy" [text]="true" severity="secondary" 
+                                                                    class="copy-btn" (onClick)="$event.stopPropagation(); copyToClipboard(formatJson(res.data))"></p-button>
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                    @if (res.error) {
+                                                        <div class="flex flex-column gap-2">
+                                                            <span class="text-[10px] font-bold text-red-500 uppercase">Error:</span>
+                                                            <div class="p-3 bg-red-900 text-red-100 border-round text-xs border-1 border-red-700">
+                                                                {{ res.error }}
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            </p-accordion-content>
+                                        </p-accordion-panel>
+                                    }
+                                </p-accordion>
+
+                                @if (execution.payload) {
+                                    <div class="mt-5 pt-4 border-top-1 surface-border">
+                                        <h4 class="m-0 mb-3 text-xs font-bold uppercase tracking-wider text-500 flex align-items-center gap-2">
+                                            <i class="pi pi-box"></i> Payload Inicial
+                                        </h4>
+                                        <div class="relative json-container">
+                                            <pre>{{ formatJson(execution.payload) }}</pre>
+                                            <p-button icon="pi pi-copy" [text]="true" severity="secondary" 
+                                                class="copy-btn" (onClick)="$event.stopPropagation(); copyToClipboard(formatJson(execution.payload))"></p-button>
+                                        </div>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
