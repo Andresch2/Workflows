@@ -138,6 +138,29 @@ export class WorkflowsController {
     return this.workflowEngineService.executeWorkflow(id, undefined, payload);
   }
 
+  @Get(':id/executions')
+  @ApiParam({ name: 'id', type: String })
+  getExecutions(
+    @Param('id') id: string,
+    @Query() query: any,
+  ) {
+    let page = query?.page ?? 1;
+    let limit = query?.limit ?? 10;
+    if (limit > 50) limit = 50;
+
+    return this.workflowsService.getExecutions(id, { page, limit });
+  }
+
+  @Delete(':id/executions')
+  clearExecutions(@Param('id') id: string) {
+    return this.workflowsService.clearExecutions(id);
+  }
+
+  @Get('executions/:id')
+  @ApiParam({ name: 'id', type: String })
+  async findExecutionById(@Param('id') id: string) {
+    return this.workflowsService.getExecutionById(id);
+  }
   // Endpoints de Nodos de Workflow
 
   @Post('nodes')

@@ -19,6 +19,7 @@ import { WorkflowDatabaseConfig } from './infrastructure/persistence/relational/
 import { WorkflowConnectionRepository } from './infrastructure/persistence/workflow-connection.repository';
 import { WorkflowNodeRepository } from './infrastructure/persistence/workflow-node.repository';
 import { WorkflowRepository } from './infrastructure/persistence/workflow.repository';
+import { WorkflowExecutionRepository } from './infrastructure/persistence/workflow-execution.repository';
 
 @Injectable()
 export class WorkflowsService {
@@ -30,6 +31,7 @@ export class WorkflowsService {
     private readonly workflowConnectionRepository: WorkflowConnectionRepository,
     @InjectRepository(WorkflowDatabaseConfig)
     private readonly databaseConfigRepo: Repository<WorkflowDatabaseConfig>,
+    private readonly executionRepository: WorkflowExecutionRepository,
   ) { }
 
   // Configuración
@@ -247,6 +249,27 @@ export class WorkflowsService {
 
   removeConnectionsByWorkflowId(workflowId: string): Promise<void> {
     return this.workflowConnectionRepository.removeByWorkflowId(workflowId);
+  }
+
+  // Historial de Ejecuciones
+
+  async getExecutions(workflowId: string, paginationOptions: IPaginationOptions) {
+    return this.executionRepository.findAllWithPagination({
+      workflowId,
+      paginationOptions,
+    });
+  }
+
+  async clearExecutions(workflowId: string): Promise<void> {
+    await this.executionRepository.deleteByWorkflowId(workflowId);
+  }
+
+  async getExecutionById(id: string) {
+    const execution = await this.executionRepository.findById(id);
+    if (!execution) {
+      throw new NotFoundException('Ejecución no encontrada');
+    }
+    return execution;
   }
 
   // Funciones Auxiliares

@@ -4,6 +4,8 @@ import { WorkflowNode } from '../domain/workflow-node';
 import { WorkflowNodeType } from '../domain/workflow-node-type.enum';
 import { WorkflowConnectionRepository } from '../infrastructure/persistence/workflow-connection.repository';
 import { WorkflowNodeRepository } from '../infrastructure/persistence/workflow-node.repository';
+import { WorkflowExecutionRepository } from '../infrastructure/persistence/workflow-execution.repository';
+import { WorkflowExecution } from '../domain/workflow-execution';
 import { CodeHandler } from './handlers/code.handler';
 import { DatabaseHandler } from './handlers/database.handler';
 import { DelayHandler } from './handlers/delay.handler';
@@ -28,6 +30,7 @@ export class WorkflowEngineService {
     private readonly formHandler: FormHandler,
     private readonly ifHandler: IfHandler,
     private readonly codeHandler: CodeHandler,
+    private readonly executionRepository: WorkflowExecutionRepository,
   ) {
     this.handlers.set(WorkflowNodeType.HTTP, this.httpHandler);
     this.handlers.set(WorkflowNodeType.DATABASE, this.databaseHandler);
@@ -64,6 +67,34 @@ export class WorkflowEngineService {
       );
     } else if (!executionId) {
       executionId = `ex_${Date.now()}_local`;
+    }
+
+    // Registrar inicio de ejecución en DB
+    let executionRecord: WorkflowExecution | null = null;
+    try {
+      const triggerType = (initialContext as any)?.triggerType || 'manual';
+      
+      if (step?.run) {
+        executionRecord = await step.run('db-create-execution', async () => {
+          return this.executionRepository.create({
+            workflowId,
+            status: 'running',
+            triggerType,
+            payload: initialPayload,
+            results: {},
+          });
+        });
+      } else {
+        executionRecord = await this.executionRepository.create({
+          workflowId,
+          status: 'running',
+          triggerType,
+          payload: initialPayload,
+          results: {},
+        });
+      }
+    } catch (e) {
+      this.logger.error(`No se pudo crear registro de ejecución: ${e.message}`);
     }
 
     const context: WorkflowContext = {
@@ -116,6 +147,7 @@ export class WorkflowEngineService {
     const results: Record<string, NodeResult> = {};
     const skippedNodes = new Set<string>();
 
+    let stepIndex = 0;
     for (const node of executionOrder) {
       // Validar si el nodo debe ejecutarse o saltarse
       const incomingConns = connections.filter(c => c.targetNodeId === node.id);
@@ -129,7 +161,6 @@ export class WorkflowEngineService {
           const sourceResult = results[conn.sourceNodeId];
           if (sourceResult?.type === WorkflowNodeType.IF) {
             const activeBranch = sourceResult.data?.branch;
-            // Si el conector no especifica handle, o si coincide con la rama activa
             if (!conn.sourceHandle || conn.sourceHandle === activeBranch) {
               hasActiveConnection = true;
               break;
@@ -146,13 +177,17 @@ export class WorkflowEngineService {
           continue;
         }
       }
-
+      
+      stepIndex++;
       const nodeResult = await this.executeNode(
         node,
         connections,
         context,
         step,
       );
+
+      (nodeResult as any).executionOrder = stepIndex;
+      (nodeResult as any).finishedAt = new Date().toISOString();
 
       results[node.id] = nodeResult;
 
@@ -185,6 +220,28 @@ export class WorkflowEngineService {
     this.logger.log(
       `Workflow ${workflowId} completado con ${Object.keys(results).length} nodos procesados`,
     );
+
+    // Actualizar registro en DB al finalizar
+    if (executionRecord) {
+      try {
+        const finalStatus = Object.values(results).some((r: any) => r.status === 'failed') ? 'failed' : 'completed';
+        const updatePayload = {
+          status: finalStatus as any,
+          results,
+          finishedAt: new Date(),
+        };
+
+        if (step?.run) {
+          await step.run('db-update-execution', async () => {
+            return this.executionRepository.update(executionRecord!.id, updatePayload);
+          });
+        } else {
+          await this.executionRepository.update(executionRecord.id, updatePayload);
+        }
+      } catch (e) {
+        this.logger.error(`No se pudo actualizar registro de ejecución: ${e.message}`);
+      }
+    }
 
     return { status: 'completed', results };
   }
