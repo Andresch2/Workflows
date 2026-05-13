@@ -31,6 +31,7 @@ import {
 import { CodePropertiesComponent } from './node-types/code-properties.component';
 import { DatabasePropertiesComponent } from './node-types/database-properties.component';
 import { DelayPropertiesComponent } from './node-types/delay-properties.component';
+import { EmailPropertiesComponent } from './node-types/email-properties.component';
 import { FormPropertiesComponent } from './node-types/form-properties.component';
 import { HttpPropertiesComponent } from './node-types/http-properties.component';
 import { IfPropertiesComponent } from './node-types/if-properties.component';
@@ -62,6 +63,7 @@ type PointerPosition = {
         HttpPropertiesComponent,
         DatabasePropertiesComponent,
         DelayPropertiesComponent,
+        EmailPropertiesComponent,
         NotificationPropertiesComponent,
         FormPropertiesComponent,
         WebhookPropertiesComponent,

@@ -23,6 +23,7 @@ const TOOLBOX_DESCRIPTIONS: Record<WorkflowNodeType, string> = {
     [WorkflowNodeType.WEBHOOK]: 'Entrada por webhook',
     [WorkflowNodeType.DATABASE]: 'Operaciones DB',
     [WorkflowNodeType.NOTIFICATION]: 'Enviar mensaje',
+    [WorkflowNodeType.EMAIL]: 'Enviar correo electrónico',
     [WorkflowNodeType.DELAY]: 'Esperar tiempo',
     [WorkflowNodeType.FORM]: 'Formulario publico',
     [WorkflowNodeType.IF]: 'Condicion IF/ELSE',
@@ -43,7 +44,7 @@ const TOOLBOX_GROUPS: Array<{ key: string; label: string; types: WorkflowNodeTyp
     {
         key: 'actions',
         label: 'Acciones',
-        types: [WorkflowNodeType.HTTP, WorkflowNodeType.DATABASE, WorkflowNodeType.NOTIFICATION],
+        types: [WorkflowNodeType.HTTP, WorkflowNodeType.DATABASE, WorkflowNodeType.NOTIFICATION, WorkflowNodeType.EMAIL],
     },
 ];
 

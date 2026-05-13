@@ -5,6 +5,7 @@ export enum WorkflowNodeType {
     DATABASE = 'DATABASE',
     DELAY = 'DELAY',
     NOTIFICATION = 'NOTIFICATION',
+    EMAIL = 'EMAIL',
     FORM = 'FORM',
     IF = 'IF',
     CODE = 'CODE',
