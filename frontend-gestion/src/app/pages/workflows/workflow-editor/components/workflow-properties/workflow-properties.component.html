@@ -50,6 +50,11 @@
                     (configChange)="onConfigChangeFromChild($event)"></app-notification-properties>
                 }
 
+                @case ('EMAIL') {
+                <app-email-properties [node]="node" [availableAncestors]="availableAncestors"
+                    (configChange)="onConfigChangeFromChild($event)"></app-email-properties>
+                }
+
                 @case ('DELAY') {
                 <app-delay-properties [node]="node" [availableAncestors]="availableAncestors"
                     (configChange)="onConfigChangeFromChild($event)"></app-delay-properties>
